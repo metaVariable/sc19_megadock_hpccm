@@ -62,12 +62,10 @@ Stage0 += openmpi(
 )
 
 # MEGADOCK
-Stage0 += copy(src='.', dest='/workspace')
+Stage0 += copy(src='./megadock-5.0-alpha-706cb91', dest='/workspace')
 Stage0 += copy(
-    src='./docker/gpu-dp/Makefile',
+    src='./Makefile',
     dest='/workspace/Makefile'
 )
 
-# Stage0 += workdir(directory='/workspace') # something wrong on workfir command
-# Stage0 += shell(chdir=True, commands=['make -j$(nproc)']) # something wrong on workfir command
 Stage0 += shell(commands=['cd /workspace', 'make -j$(nproc)'])
