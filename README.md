@@ -1,11 +1,10 @@
-# Multiple HPC Environments-Aware Container Image Configuration for Bioinformatics Application
+# MEGADOCK-HPCCM
 
-- Authors: 
-  - Kento Aoyama(1,2) Hiroki Watanabe(1,2) Ohue Masahito(1)  Yutaka Akiyama(1)
+## Requirements
 
-- Affiliations:
-  1. Department of Computer Science, School of Computing, Tokyo Institute of Technology, Japan
-  2. AIST-Tokyo Tech Real World Big-Data Computation Open Innovative Laboratory (RWBC-OIL), National Institute of Advanced Industrial Science and Technology (AIST), Japan
+- [HPC Container Maker](https://github.com/NVIDIA/hpc-container-maker/)
+- [Docker](https://www.docker.com/) (if you use)
+- [Singularity](https://sylabs.io/) (if you use)
 
 ## Repository overview
 ```sh
@@ -26,16 +25,6 @@
 ├── data                            # directory for storing input
 └── out                             # directory for storing output
 ```
-
-----
-
-# MEGADOCK-HPCCM
-
-## Requirements
-
-- [HPC Container Maker](https://github.com/NVIDIA/hpc-container-maker/)
-- [Docker](https://www.docker.com/) (if you use)
-- [Singularity](https://sylabs.io/) (if you use)
 
 ## For Singularity environment
 
