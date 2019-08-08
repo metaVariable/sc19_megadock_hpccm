@@ -21,10 +21,10 @@
 ── script                          # scripts for experiments
     └── makeTable.sh                #   for generating input docking list (table)
 
-# Those will be generated
+# Those will be generated after setup
 .
 ├── data                            # directory for storing input
-└── out                             # directory for storing output and results
+└── out                             # directory for storing output
 ```
 
 ----
@@ -39,14 +39,14 @@
 
 ## For Singularity environment
 
-**Note: Singularity environment may depend on host libralies**
+**Note: Singularity environment may depend on host libralies, please read the manual on your HPC environment**
 
 - requirements
   - pip, python (for HPCCM)
   - singularity
     - require privilege for `sudo singularity build`
 
-### Setup on your local environment
+### Installation and setup ( on local environment )
 
 ```sh
 # install hpccm
@@ -57,7 +57,7 @@ git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
 cd sc19_megadock_hpccm
 ```
 
-### Generate Singularity definition, build singularity image
+### Generate Singularity definition, build Singularity image ( on local environment )
 ``` sh
 # generate 'singularity.def' from hpccm recipe
 hpccm --recipe megadock_hpccm.py --format singularity > singularity.def
@@ -74,9 +74,7 @@ sudo singularity build megadock-hpccm.simg singularity.def
 # please copy singularity image to HPC system on yourself ('megadock-hpccm.sif' or 'megadock-hpccm.simg')
 ```
 
-### Run Singularity container on HPC environment
-
-#### Setup on HPC environment
+### Setup and run Singularity container (on HPC environment)
 
 ```sh
 # clone MEGADOCK-HPCCM repository
@@ -91,20 +89,21 @@ tar xvzf benchmark1.0.tar.gz -C data && rm benchmark1.0.tar.gz
 
 **Note: following commands should be running on compute-node.** 
 
-- Please read the system manual about singularity on your HPC system. We must add several options for singularity runtime in general case.
+- Please read the system manual about Singularity on your HPC system. We must add several options for singularity runtime in general case, and it's depend on systems.
   - e.g.) Volume option (`-B`) for mounting system storage, applications, libraries, etc.
 
 ```sh
-# create input table by script
+# generate input docking table for MEGADOCK calculation (all-to-all dockings for ZDOCK benchmark 1.0)
 INTERACTIVE=0 ENABLE_TSV=1 TSV_SIZE=50 \
 script/makeTable.sh data/benchmark1.0/unbound_pdb/\*_r.pdb data/benchmark1.0/unbound_pdb/\*_l.pdb test_all2all
 
-# singularity exec (please replace ${SINGULARITY_IMAGE} to your path to singularity image)
+# singularity exec 
+# Note: please replace ${SINGULARITY_IMAGE} to your path to the container image file
 singularity exec --nv ${SINGULARITY_IMAGE} \
-  mpirun -n 2 -x OMP_NUM_THREADS=$(nproc) \
-  /workspace/megadock-gpu-dp -tb `pwd`/out/test_all2all/test_all2all.table
+  mpirun -n 2 /workspace/megadock-gpu-dp -tb `pwd`/out/test_all2all/test_all2all.table
 
-# singularity exec with host MPI library (please read carefully the system manual on your HPC system)
+# singularity exec (with host MPI library)
+# Note: please read carefully the system manual on your HPC system
 mpirun -n 16 -x OMP_NUM_THREADS=$(nproc) \
   singularity exec --nv ${SINGULARITY_IMAGE} \
   /workspace/megadock-gpu-dp -tb `pwd`/out/test_all2all/test_all2all.table
@@ -118,7 +117,7 @@ mpirun -n 16 -x OMP_NUM_THREADS=$(nproc) \
   - pip, python (for HPCCM)
   - docker > 19.03
 
-### Setup
+### Installation and setup
 
 ```sh
 # install hpccm
