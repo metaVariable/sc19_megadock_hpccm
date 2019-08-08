@@ -18,7 +18,7 @@
 │   ├── Dockerfile                  #   for General Docker environment
 │   ├── singularity_ompi-2-1-3.def  #   for TSUBAME3.0 
 │   └── singularity_ompi-3-1-3.def  #   for ABCI
-── script                          # scripts for experiments
+└── script                          # scripts for experiments
     └── makeTable.sh                #   for generating input docking list (table)
 
 # Those will be generated after setup
