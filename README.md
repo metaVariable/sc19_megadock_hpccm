@@ -8,22 +8,23 @@
   2. AIST-Tokyo Tech Real World Big-Data Computation Open Innovative Laboratory (RWBC-OIL), National Institute of Advanced Industrial Science and Technology (AIST), Japan
 
 ## Repository overview
-```sh
+```
 .
-├── Makefile                        # Makefile used for container building
-├── megadock-5.0-alpha-706cb91      # source code of MEGADOCK application
-├── megadock_hpccm.py               # HPCCM recipe for generating Dockerfile and Singularity definition
-├── README.md                       # this document
-├── sample                          # recipe samples used in the poster's experiments
+├── data                            # directory for storing input
+│   └── ...                         # 
+├── sample                          # container image recipes used in the poster's experiments
 │   ├── Dockerfile                  #   for General Docker environment
 │   ├── singularity_ompi-2-1-3.def  #   for TSUBAME3.0 
 │   └── singularity_ompi-3-1-3.def  #   for ABCI
-└── script                          # scripts for experiments
-    └── makeTable.sh                #   for generating input docking list (table)
+├── script                          # 
+|   └── makeTable.sh                # script for generating input docking list (table)
+├── megadock-5.0-alpha-706cb91      # source code of MEGADOCK application
+├── megadock_hpccm.py               # HPCCM recipe for generating Dockerfile and Singularity definition
+├── Makefile                        # Makefile for image building
+└── README.md                       # this document
 
-# Those will be generated after setup
+# The directory will be generated after running scripts
 .
-├── data                            # directory for storing input
 └── out                             # directory for storing output
 ```
 
