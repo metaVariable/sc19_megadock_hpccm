@@ -7,22 +7,23 @@
 - [Singularity](https://sylabs.io/) (if you use)
 
 ## Repository overview
-```sh
+```
 .
-├── Makefile                        # Makefile used for container building
-├── megadock-5.0-alpha-706cb91      # source code of MEGADOCK application
-├── megadock_hpccm.py               # HPCCM recipe for generating Dockerfile and Singularity definition
-├── README.md                       # this document
-├── sample                          # recipe samples used in the poster's experiments
+├── data                            # directory for storing input
+│   └── ...                         # 
+├── sample                          # container image recipes used in the poster's experiments
 │   ├── Dockerfile                  #   for General Docker environment
 │   ├── singularity_ompi-2-1-3.def  #   for TSUBAME3.0 
 │   └── singularity_ompi-3-1-3.def  #   for ABCI
-└── script                          # scripts for experiments
-    └── makeTable.sh                #   for generating input docking list (table)
+├── script                          # 
+|   └── makeTable.sh                # script for generating input docking list (table)
+├── megadock-5.0-alpha-706cb91      # source code of MEGADOCK application
+├── megadock_hpccm.py               # HPCCM recipe for generating Dockerfile and Singularity definition
+├── Makefile                        # Makefile for image building
+└── README.md                       # this document
 
-# Those will be generated after setup
+# The directory will be generated after running scripts
 .
-├── data                            # directory for storing input
 └── out                             # directory for storing output
 ```
 
@@ -65,23 +66,35 @@ sudo singularity build megadock-hpccm.simg singularity.def
 
 ### Setup and run Singularity container (on HPC environment)
 
+- **Notes:**
+  - **Following commands should be running on compute-node.** 
+  - Please replace `${SINGULARITY_IMAGE}` to **path to the container image file** on your environment.
+  - Please read the system manual about Singularity on your HPC system. We must add options for singularity runtime in general case.
+    - e.g.) Volume option (`-B XXX`) for mounting system storage, applications, libraries, etc.
+
+#### Test MEGADOCK calculation with small dataset
+
+```sh
+# clone MEGADOCK-HPCCM repository
+git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
+cd sc19_megadock_hpccm
+
+# singularity exec 
+singularity exec --nv ${SINGULARITY_IMAGE} \
+  mpirun -n 2 /workspace/megadock-gpu-dp -tb `pwd`/data/SAMPLE.table
+```
+
+#### Run MEGADOCK calculation with ZDOCK Benchmark 1.0
+
 ```sh
 # clone MEGADOCK-HPCCM repository
 git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
 cd sc19_megadock_hpccm
 
 # download benchmark dataset (ZDOCK Benchmark 1.0)
-mkdir -p data
 wget http://zlab.umassmed.edu/zdock/benchmark1.0.tar.gz
 tar xvzf benchmark1.0.tar.gz -C data && rm benchmark1.0.tar.gz
-```
 
-**Note: following commands should be running on compute-node.** 
-
-- Please read the system manual about Singularity on your HPC system. We must add several options for singularity runtime in general case, and it's depend on systems.
-  - e.g.) Volume option (`-B`) for mounting system storage, applications, libraries, etc.
-
-```sh
 # generate input docking table for MEGADOCK calculation (all-to-all dockings for ZDOCK benchmark 1.0)
 INTERACTIVE=0 ENABLE_TSV=1 TSV_SIZE=50 \
 script/makeTable.sh data/benchmark1.0/unbound_pdb/\*_r.pdb data/benchmark1.0/unbound_pdb/\*_l.pdb test_all2all
@@ -131,9 +144,28 @@ docker build . -f Dockerfile -t megadock:hpccm
 
 ### Run Docker container on HPC environment (WIP)
 
-**Note: This section is under development**
+#### Test MEGADOCK calculation with small dataset
 
 ```sh
+# clone MEGADOCK-HPCCM repository
+git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
+cd sc19_megadock_hpccm
+
+# run 
+docker run --rm -it --gpus all \ 
+  -v `pwd`/data:/data  megadock:hpccm \
+  mpirun --allow-run-as-root -n 2 megadock-gpu-dp -tb data/SAMPLE.table
+```
+
+#### Run MEGADOCK calculation with ZDOCK Benchmark 1.0
+
+**This section is under development.**
+
+```sh
+# clone MEGADOCK-HPCCM repository
+git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
+cd sc19_megadock_hpccm
+
 # download benchmark dataset (ZDOCK Benchmark 1.0)
 mkdir -p data
 wget http://zlab.umassmed.edu/zdock/benchmark1.0.tar.gz
