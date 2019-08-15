@@ -207,7 +207,7 @@ for tsv in $tsv_targets ; do
 
   count=$(( count + 1 ))
   # write a line
-  echo -e "${RUNTIME_TABLE_DIR}/${tsv}" >> "$TABLE_FILE"
+  echo -e "${RUNTIME_TSV_DIR}/${tsv}" >> "$TABLE_FILE"
 
   # show progress
   progress=$(( count * progress_ratio / count_max ))
