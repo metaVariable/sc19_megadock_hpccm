@@ -3,6 +3,7 @@
 ## Requirements
 
 - [HPC Container Maker](https://github.com/NVIDIA/hpc-container-maker/)
+- NVIDIA GPU Device
 - [Docker](https://www.docker.com/) (if you use)
 - [Singularity](https://sylabs.io/) (if you use)
 
@@ -106,7 +107,8 @@ script/makeTable.sh . data/benchmark1.0/unbound_pdb \*_r.pdb \*_l.pdb 200pairs
 # singularity exec 
 # Note: please replace ${SINGULARITY_IMAGE} to your path to the container image file
 singularity exec --nv ${SINGULARITY_IMAGE} \
-  mpirun -n 2 /workspace/megadock-gpu-dp -tb table/200pairs/200pairs.table
+  mpirun -n 2 -x OMP_NUM_THREADS=$(nproc) \
+  /workspace/megadock-gpu-dp -tb table/200pairs/200pairs.table
 
 # singularity exec (with host MPI library)
 # Note: please read carefully the system manual on your HPC system
