@@ -1,6 +1,6 @@
 TITLE=sample jobs
-PARAM=-R $1 -L $2 -O
-data/1gcq_r.pdb	data/1gcq_r.pdb
-data/1gcq_r.pdb	data/1gcq_l.pdb
-data/1gcq_l.pdb	data/1gcq_r.pdb
-data/1gcq_l.pdb	data/1gcq_l.pdb
+PARAM=-R $1 -L $2 -o $3 -O
+data/1gcq_r.pdb	data/1gcq_r.pdb	data/1gcq_r_1gcq_r.out
+data/1gcq_r.pdb	data/1gcq_l.pdb	data/1gcq_r_1gcq_l.out
+data/1gcq_l.pdb	data/1gcq_r.pdb	data/1gcq_l_1gcq_r.out
+data/1gcq_l.pdb	data/1gcq_l.pdb	data/1gcq_l_1gcq_l.out
