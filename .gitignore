@@ -1,3 +1,10 @@
+# data directories
 data/benchmark*
 table/*
 out/*
+
+# generated files
+*.csv
+*.tsv
+*.detail
+*.out
