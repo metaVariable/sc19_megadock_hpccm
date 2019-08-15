@@ -82,7 +82,7 @@ cd sc19_megadock_hpccm
 
 # singularity exec 
 singularity exec --nv ${SINGULARITY_IMAGE} \
-  mpirun -n 2 /workspace/megadock-gpu-dp -tb `pwd`/data/SAMPLE.table
+  mpirun -n 2 /workspace/megadock-gpu-dp -tb data/SAMPLE.table
 ```
 
 #### Run MEGADOCK calculation with ZDOCK Benchmark 1.0
@@ -98,19 +98,21 @@ tar xvzf benchmark1.0.tar.gz -C data
 rm -f benchmark1.0.tar.gz
 
 # generate input docking table for MEGADOCK calculation (all-to-all dockings for ZDOCK benchmark 1.0)
-INTERACTIVE=0 ENABLE_TSV=1 TSV_SIZE=50 \
-script/makeTable.sh data/benchmark1.0/unbound_pdb/\*_r.pdb data/benchmark1.0/unbound_pdb/\*_l.pdb test_all2all
+INTERACTIVE=1 TABLE_ITEM_MAX=200 TSV_SIZE=50 \
+script/makeTable.sh . data/benchmark1.0/unbound_pdb \*_r.pdb \*_l.pdb 200pairs
+# deleting 'TABLE_ITEM_MAX' to prepare all-to-all docking pairs (3481)
+# if you need to change file path in compute-node, use 'RUNTIME_RELATIVE_ROOT' to modify PATH in the table.
 
 # singularity exec 
 # Note: please replace ${SINGULARITY_IMAGE} to your path to the container image file
 singularity exec --nv ${SINGULARITY_IMAGE} \
-  mpirun -n 2 /workspace/megadock-gpu-dp -tb `pwd`/out/test_all2all/test_all2all.table
+  mpirun -n 2 /workspace/megadock-gpu-dp -tb table/200pairs/200pairs.table
 
 # singularity exec (with host MPI library)
 # Note: please read carefully the system manual on your HPC system
-mpirun -n 16 -x OMP_NUM_THREADS=$(nproc) \
+mpirun -n 2 -x OMP_NUM_THREADS=$(nproc) \
   singularity exec --nv ${SINGULARITY_IMAGE} \
-  /workspace/megadock-gpu-dp -tb `pwd`/out/test_all2all/test_all2all.table
+  /workspace/megadock-gpu-dp -tb table/200pairs/200pairs.table
 ```
 
 ----
@@ -144,7 +146,7 @@ hpccm --recipe megadock_hpccm.py --format docker --userarg ompi=3.1.3 fftw=3.3.8
 docker build . -f Dockerfile -t megadock:hpccm
 ```
 
-### Run Docker container on HPC environment (WIP)
+### Run Docker container on HPC environment
 
 #### Test MEGADOCK calculation with small dataset
 
@@ -161,8 +163,6 @@ docker run --rm -it --gpus all \
 
 #### Run MEGADOCK calculation with ZDOCK Benchmark 1.0
 
-**This section is under development.**
-
 ```sh
 # clone MEGADOCK-HPCCM repository
 git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
@@ -178,7 +178,7 @@ rm -f benchmark1.0.tar.gz
 INTERACTIVE=1 TABLE_ITEM_MAX=200 TSV_SIZE=50 RUNTIME_RELATIVE_ROOT=/ \
 script/makeTable.sh . data/benchmark1.0/unbound_pdb \*_r.pdb \*_l.pdb 200pairs
 
-# deleting 'TABLE_ITEM_MAX' to calculate all-to-all docking pairs (3481)
+# deleting 'TABLE_ITEM_MAX' to prepare all-to-all docking pairs (3481)
 
 # run
 docker run --rm -it --gpus all \
