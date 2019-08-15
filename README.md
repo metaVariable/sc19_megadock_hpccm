@@ -24,6 +24,7 @@
 
 # The directory will be generated after running scripts
 .
+├── table                           # directory for storing docking artifacts
 └── out                             # directory for storing output
 ```
 
@@ -173,12 +174,16 @@ wget http://zlab.umassmed.edu/zdock/benchmark1.0.tar.gz
 tar xvzf benchmark1.0.tar.gz -C data
 rm -f benchmark1.0.tar.gz
 
-# create input table by script
-INTERACTIVE=0 ENABLE_TSV=1 TSV_SIZE=50 \
-script/makeTable.sh data/benchmark1.0/unbound_pdb/\*_r.pdb data/benchmark1.0/unbound_pdb/\*_l.pdb test_all2all
+# create docking table using script
+INTERACTIVE=1 TABLE_ITEM_MAX=200 TSV_SIZE=50 RUNTIME_RELATIVE_ROOT=/ \
+script/makeTable.sh . data/benchmark1.0/unbound_pdb \*_r.pdb \*_l.pdb 200pairs
+
+# deleting 'TABLE_ITEM_MAX' to calculate all-to-all docking pairs (3481)
 
 # run
 docker run --rm -it --gpus all \
-  -v `pwd`/data:/data -v `pwd`/out:/out  megadock:hpccm \
-  mpirun --allow-run-as-root -n 2 /workspace/megadock-gpu-dp -tb /out/test_all2all/test_all2all.table
+  -v `pwd`/data:/data -v `pwd`/table:/table -v `pwd`/out:/out \
+  megadock:hpccm \
+    mpirun --allow-run-as-root -n 2 -x OMP_NUM_THREADS=$(nproc) \
+      /workspace/megadock-gpu-dp -tb /table/200pairs/200pairs.table
 ```
