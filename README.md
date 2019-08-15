@@ -12,13 +12,13 @@
 ├── data                            # directory for storing input
 │   └── ...                         # 
 ├── sample                          # container image recipes used in the poster's experiments
-│   ├── Dockerfile                  #   for General Docker environment
-│   ├── singularity_ompi-2-1-3.def  #   for TSUBAME3.0 
-│   └── singularity_ompi-3-1-3.def  #   for ABCI
+│   ├── Dockerfile                  #   Dockerfile for general environments
+│   ├── singularity_ompi-2-1-3.def  #   Singularity definition for TSUBAME3.0
+│   └── singularity_ompi-3-1-3.def  #   Singularity definition for ABCI
 ├── script                          # 
 |   └── makeTable.sh                # script for generating input docking list (table)
 ├── megadock-5.0-alpha-706cb91      # source code of MEGADOCK application
-├── megadock_hpccm.py               # HPCCM recipe for generating Dockerfile and Singularity definition
+├── megadock_hpccm.py               # HPCCM recipe
 ├── Makefile                        # Makefile for image building
 └── README.md                       # this document
 
@@ -93,7 +93,8 @@ cd sc19_megadock_hpccm
 
 # download benchmark dataset (ZDOCK Benchmark 1.0)
 wget http://zlab.umassmed.edu/zdock/benchmark1.0.tar.gz
-tar xvzf benchmark1.0.tar.gz -C data && rm benchmark1.0.tar.gz
+tar xvzf benchmark1.0.tar.gz -C data
+rm -f benchmark1.0.tar.gz
 
 # generate input docking table for MEGADOCK calculation (all-to-all dockings for ZDOCK benchmark 1.0)
 INTERACTIVE=0 ENABLE_TSV=1 TSV_SIZE=50 \
@@ -152,9 +153,9 @@ git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
 cd sc19_megadock_hpccm
 
 # run 
-docker run --rm -it --gpus all \ 
+docker run --rm -it --gpus all \
   -v `pwd`/data:/data  megadock:hpccm \
-  mpirun --allow-run-as-root -n 2 megadock-gpu-dp -tb data/SAMPLE.table
+  mpirun --allow-run-as-root -n 2 /workspace/megadock-gpu-dp -tb /data/SAMPLE.table
 ```
 
 #### Run MEGADOCK calculation with ZDOCK Benchmark 1.0
@@ -169,13 +170,15 @@ cd sc19_megadock_hpccm
 # download benchmark dataset (ZDOCK Benchmark 1.0)
 mkdir -p data
 wget http://zlab.umassmed.edu/zdock/benchmark1.0.tar.gz
-tar xvzf benchmark1.0.tar.gz -C data && rm benchmark1.0.tar.gz
+tar xvzf benchmark1.0.tar.gz -C data
+rm -f benchmark1.0.tar.gz
 
 # create input table by script
 INTERACTIVE=0 ENABLE_TSV=1 TSV_SIZE=50 \
 script/makeTable.sh data/benchmark1.0/unbound_pdb/\*_r.pdb data/benchmark1.0/unbound_pdb/\*_l.pdb test_all2all
 
-# run 
-docker run --rm -it --gpus all megadock:hpccm
-  mpirun --allow-run-as-root -n 2 megadock-gpu-dp -tb test_all2all.table
+# run
+docker run --rm -it --gpus all \
+  -v `pwd`/data:/data -v `pwd`/out:/out  megadock:hpccm \
+  mpirun --allow-run-as-root -n 2 /workspace/megadock-gpu-dp -tb /out/test_all2all/test_all2all.table
 ```
