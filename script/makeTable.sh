@@ -70,6 +70,17 @@ if [ $INTERACTIVE -ne 0 ]; then
   echo
 fi
 
+if [ $INTERACTIVE -ne 0 ]; then
+  echo "> The following directory path already exists."
+  echo "  $TABLE_DIR"
+  read -p "> Override? (y/N): " yn
+  case "$yn" in [yY]*) ;; *) echo -e "\n abort." ; exit ;; esac
+  echo
+fi
+
+echo "> Removing table directory ..."
+rm -rf $TABLE_DIR
+
 ####################################
 # generate table
 ####################################
