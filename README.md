@@ -37,16 +37,13 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 
 ## For Singularity environment
 
-**Note: Singularity environment may depend on host libralies, please read the manual on your HPC environment**
-
 ### Requirements
 - pip, python (for HPCCM)
 - singularity
   - require `singularity exec` command on HPC system
   - require privilege for `sudo singularity build` on local
-  
 
-> Note: Following commands should be executed on your local environment where you have system privilege.
+Note: Following commands should be executed on your local environment where you have system privilege.
 
 ### [ Local ] Installation and setup
 
@@ -79,7 +76,7 @@ sudo singularity build megadock-hpccm.simg singularity.def
 ### [ HPC System ] Setup and run Singularity container
 
 - **Notes:**
-  - **Following commands should be running on HPC environment (compute-node).** 
+  - Following commands should be running on HPC environment (compute-node).
   - Please replace `${SINGULARITY_IMAGE}` to **path to the container image file** on your environment.
   - **Please read the 'Singularity' section of system manual** which provided by your HPC system. We must add specific options for singularity runtime when using system resources.
     - e.g.) Volume option (`-B XXX`) for mounting system storage, applications, libraries, etc.
@@ -111,17 +108,19 @@ rm -f benchmark1.0.tar.gz
 # generate input docking table for MEGADOCK calculation (all-to-all dockings for ZDOCK benchmark 1.0)
 INTERACTIVE=1 TABLE_ITEM_MAX=200 TSV_SIZE=50 \
 script/makeTable.sh . data/benchmark1.0/unbound_pdb \*_r.pdb \*_l.pdb 200pairs
-# deleting 'TABLE_ITEM_MAX' to prepare all-to-all docking pairs (3481)
-# if you need to change file path in compute-node, use 'RUNTIME_RELATIVE_ROOT' to modify PATH in the table.
+
+# Note:
+# - deleting 'TABLE_ITEM_MAX' to prepare all-to-all docking pairs (3481)
+# - if you need to change file path in compute-node, use 'RUNTIME_RELATIVE_ROOT' to modify PATH in the table.
 
 # singularity exec 
-# Note: please replace ${SINGULARITY_IMAGE} to your path to the container image file
 singularity exec --nv ${SINGULARITY_IMAGE} \
   mpirun -n 2 -x OMP_NUM_THREADS=$(nproc) \
   /workspace/megadock-gpu-dp -tb table/200pairs/200pairs.table
 
+# Note: please replace ${SINGULARITY_IMAGE} to your path to the container image file
+
 # singularity exec (with host MPI library)
-# Note: please read carefully the system manual on your HPC system
 mpirun -n 2 -x OMP_NUM_THREADS=$(nproc) \
   singularity exec --nv ${SINGULARITY_IMAGE} \
   /workspace/megadock-gpu-dp -tb table/200pairs/200pairs.table
@@ -190,7 +189,9 @@ rm -f benchmark1.0.tar.gz
 INTERACTIVE=1 TABLE_ITEM_MAX=200 TSV_SIZE=50 RUNTIME_RELATIVE_ROOT=/ \
 script/makeTable.sh . data/benchmark1.0/unbound_pdb \*_r.pdb \*_l.pdb 200pairs
 
-# deleting 'TABLE_ITEM_MAX' to prepare all-to-all docking pairs (3481)
+# Note: 
+# - deleting 'TABLE_ITEM_MAX' to prepare all-to-all docking pairs (3481)
+# - if you need to change the repository root path when runtime, use 'RUNTIME_RELATIVE_ROOT' to modify path in generating the table.
 
 # run
 docker run --rm -it --gpus all \
