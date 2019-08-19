@@ -1,5 +1,11 @@
 # MEGADOCK-HPCCM
 
+## Description
+
+MEGADOCK-HPCCM is a HPC container making workflow for [MEGADOCK](https://github.com/akiyamalab/MEGADOCK) application on HPC environment by using [HPCCM (HPC Container Maker)](https://github.com/NVIDIA/hpc-container-maker/) framework. It can generate container specification (recipe) files in [Dockerfile](https://docs.docker.com/engine/reference/builder/) and [Singularity definition](https://sylabs.io/guides/3.3/user-guide/definition_files.html) format from single python code.
+The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libraries to perform MEGADOCK application on HPC environment. Users can add user arguments to specify the MPI library version in the container for considering the MPI library compatibility between containers and HPC environments.
+
+
 ## Requirements
 
 - [HPC Container Maker](https://github.com/NVIDIA/hpc-container-maker/)
