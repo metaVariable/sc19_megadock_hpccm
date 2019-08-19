@@ -8,8 +8,8 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 
 ## Requirements
 
+- NVIDIA GPU device + GPU drivers
 - [HPC Container Maker](https://github.com/NVIDIA/hpc-container-maker/)
-- NVIDIA GPU Device
 - [Docker](https://www.docker.com/) (if you use)
 - [Singularity](https://sylabs.io/) (if you use)
 
@@ -17,7 +17,7 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 ```
 .
 ├── data                            # directory for storing input
-│   └── ...                         # 
+│   └── ...                         #   small pdb data for sample docking
 ├── sample                          # container image recipes used in the poster's experiments
 │   ├── Dockerfile                  #   Dockerfile for general environments
 │   ├── singularity_ompi-2-1-3.def  #   Singularity definition for TSUBAME3.0
@@ -31,7 +31,7 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 
 # The directory will be generated after running scripts
 .
-├── table                           # directory for storing docking artifacts
+├── table                           # directory for storing docking metadata
 └── out                             # directory for storing output
 ```
 
@@ -39,12 +39,16 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 
 **Note: Singularity environment may depend on host libralies, please read the manual on your HPC environment**
 
-- requirements
-  - pip, python (for HPCCM)
-  - singularity
-    - require privilege for `sudo singularity build`
+### Requirements
+- pip, python (for HPCCM)
+- singularity
+  - require `singularity exec` command on HPC system
+  - require privilege for `sudo singularity build` on local
+  
 
-### Installation and setup ( on local environment )
+> Note: Following commands should be executed on your local environment where you have system privilege.
+
+### [ Local ] Installation and setup
 
 ```sh
 # install hpccm
@@ -55,7 +59,7 @@ git clone https://github.com/metaVariable/sc19_megadock_hpccm.git
 cd sc19_megadock_hpccm
 ```
 
-### Generate Singularity definition, build Singularity image ( on local environment )
+### [ Local ] Generate Singularity definition, build Singularity image
 ``` sh
 # generate 'singularity.def' from hpccm recipe
 hpccm --recipe megadock_hpccm.py --format singularity > singularity.def
@@ -72,12 +76,12 @@ sudo singularity build megadock-hpccm.simg singularity.def
 # please copy singularity image to HPC system on yourself ('megadock-hpccm.sif' or 'megadock-hpccm.simg')
 ```
 
-### Setup and run Singularity container (on HPC environment)
+### [ HPC System ] Setup and run Singularity container
 
 - **Notes:**
-  - **Following commands should be running on compute-node.** 
+  - **Following commands should be running on HPC environment (compute-node).** 
   - Please replace `${SINGULARITY_IMAGE}` to **path to the container image file** on your environment.
-  - Please read the system manual about Singularity on your HPC system. We must add options for singularity runtime in general case.
+  - **Please read the 'Singularity' section of system manual** which provided by your HPC system. We must add specific options for singularity runtime when using system resources.
     - e.g.) Volume option (`-B XXX`) for mounting system storage, applications, libraries, etc.
 
 #### Test MEGADOCK calculation with small dataset
@@ -127,9 +131,9 @@ mpirun -n 2 -x OMP_NUM_THREADS=$(nproc) \
 
 ## For Docker environment
 
-- requirements
-  - pip, python (for HPCCM)
-  - docker > 19.03
+### requirements
+- pip, python (for HPCCM)
+- docker ( > 19.03 )
 
 ### Installation and setup
 
