@@ -8,7 +8,7 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 
 ## Requirements
 
-- NVIDIA GPU device + GPU drivers
+- [NVIDIA GPU devices, drivers](https://www.nvidia.com/)
 - [HPC Container Maker](https://github.com/NVIDIA/hpc-container-maker/)
 - [Docker](https://www.docker.com/) (if you use)
 - [Singularity](https://sylabs.io/) (if you use)
