@@ -1,21 +1,6 @@
 /*
- * Copyright (C) 2014 Tokyo Institute of Technology
- *
- *
+ * Copyright (C) 2019 Tokyo Institute of Technology
  * This file is part of MEGADOCK.
- * MEGADOCK is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * MEGADOCK is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MEGADOCK.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 //============================================================================//
@@ -34,10 +19,14 @@
 using namespace std;
 
 //============================================================================//
-void ParameterTable::initialize(int argc,char *argv[])
+void ParameterTable::process_args(int argc, char *argv[])
 //============================================================================//
 {
-    default_param();
+#ifdef MPI_DP
+    for( int i = 0 ; i < 3 ; i++ ) { //Receptor PDB, Ligand PDB, Outfile
+        _IO_flag[i] = 0;
+    }
+#endif
 
     optind = 1;
     int ch;
@@ -56,19 +45,66 @@ void ParameterTable::initialize(int argc,char *argv[])
                             Line 3:parameters
                             Line 4:calculation options
                         */
+#ifdef MPI_DP
+                        "\
+    R:L:B:U:\
+    o:ON:t:E:\
+    a:b:e:d:F:v:\
+    Dhy:z:r:f:i:jkl:S:G:T:"
+#else
                         "\
     I:\
     ON:t:E:\
     a:b:e:d:F:v:\
     Dhy:z:r:f:i:jkl:S:G:T:"
+#endif
                         )) != -1 ) {
         switch( ch ) {
             //-----------------------------------------------------------------
             // input PDB file -------------------------------------------------
 
+#ifdef MPI_DP
+        case 'R':
+            _RecPDB_file  = optarg;
+            _IO_flag[0]   = 1;
+            break;
+        case 'L':
+            _LigPDB_file  = optarg;
+            _IO_flag[1]   = 1;
+            break;
+        case 'B': // for input support
+            _RecPDB_file  = optarg+pdb_ext_r_b;
+            _IO_flag[0]   = 1;
+            _LigPDB_file  = optarg+pdb_ext_l_b;
+            _IO_flag[1]   = 1;
+            break;
+        case 'U': // for input support
+            _RecPDB_file  = optarg+pdb_ext_r_u;
+            _IO_flag[0]   = 1;
+            _LigPDB_file  = optarg+pdb_ext_l_u;
+            _IO_flag[1]   = 1;
+            break;
+
+            //-----------------------------------------------------------------
+            // output options -------------------------------------------------
+
+        case 'o':
+            _RLOut_file = optarg;
+            _RLOut_file_detail = optarg+detail_ext;
+            _RLOut_file_csv = optarg+csv_ext;
+            if(_RLOut_file.length() > 4) {
+                if(_RLOut_file.substr(_RLOut_file.length()-4)==".out") {
+                    _RLOut_file_detail = _RLOut_file.substr(0,_RLOut_file.length()-4)+detail_ext;;
+                    _RLOut_file_csv = _RLOut_file.substr(0,_RLOut_file.length()-4)+csv_ext;;
+                }
+            }
+            _IO_flag[2]   = 1;
+            break;
+#else
         case 'I':
             _Table_file   = optarg;
             break;
+#endif
 
             //-----------------------------------------------------------------
             // output options -------------------------------------------------
@@ -208,17 +244,85 @@ void ParameterTable::initialize(int argc,char *argv[])
             break;
         }
     }
+#ifdef MPI_DP
+    pdb_step();
+#endif
+}
 
-    parameter_set();
+#ifdef MPI_DP
+//============================================================================//
+void ParameterTable::pdb_step()
+//============================================================================//
+{
+    if( !_IO_flag[0] ) {
+        cerr << "[ERROR] Receptor PDB file is not specified!!" << endl;
+        usage();
+        exit(1);
+    }
+
+    if( !_IO_flag[1] ) {
+        cerr << "[ERROR] Ligand PDB file is not specified!!" << endl;
+        usage();
+        exit(1);
+    }
+
+    if( !_IO_flag[2] ) {
+        string  rfile = _RecPDB_file;
+        string  lfile = _LigPDB_file;
+        string  ofile;
+        int     ipr;
+        int     ipl;
+
+        while(1) {
+            ipr   = rfile.rfind("/");
+
+            if( ipr == (int) string::npos ) {
+                break;
+            } else {
+                rfile = rfile.substr(ipr+1);
+            }
+        }
+
+        ipr   = rfile.rfind(".");
+        rfile = rfile.substr(0,ipr);
+        rfile = rfile + "-";
+
+        while(1) {
+            ipl   = lfile.rfind("/");
+
+            if( ipl == (int) string::npos ) {
+                break;
+            } else {
+                lfile = lfile.substr(ipl+1);
+            }
+        }
+
+        ipl   = lfile.rfind(".");
+        lfile = lfile.substr(0,ipl);
+
+        ofile = rfile + lfile + ".out";
+        _RLOut_file = ofile;
+        ofile = rfile + lfile + ".detail";
+        _RLOut_file_detail = ofile;
+        ofile = rfile + lfile + ".csv";
+        _RLOut_file_csv = ofile;
+    }
+
+    //cout << "#Receptor = " << _RecPDB_file << endl;
+    //cout << "#Ligand   = " << _LigPDB_file << endl;
+    cout << "# Output file = " << _RLOut_file << endl;
 
     return;
 }
+#endif
 
 //============================================================================//
 void ParameterTable::initialize(ParameterTable *pparameter)
 //============================================================================//
 {
+#ifndef MPI_DP
     _Table_file = pparameter->_Table_file;
+#endif
     _RLOut_file = pparameter->_RLOut_file;
     _RLOut_file_detail = pparameter->_RLOut_file_detail; 
     _RLOut_file_csv = pparameter->_RLOut_file_csv;

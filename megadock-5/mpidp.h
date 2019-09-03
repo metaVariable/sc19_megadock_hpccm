@@ -1,28 +1,13 @@
 /*
- * Copyright (C) 2014 Tokyo Institute of Technology 
- *
- * 
+ * Copyright (C) 2019 Tokyo Institute of Technology
  * This file is part of MEGADOCK.
- * MEGADOCK is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * MEGADOCK is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MEGADOCK.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 //============================================================================//
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : Mpidp
+//  Class Name : MPIDP
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
@@ -39,6 +24,11 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <mpi.h>
+#include "application.h"
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 using namespace std;
 
@@ -67,30 +57,38 @@ class Mpidp
     string          _Table_file;
     string          _Out_file;
     int             _Out_option;
-    int             _Ntry;
     int			    _Worker_life;
     string		    _Title;
     string		    _Param;
-    char			_Name[7];
-    vector<string>	_Table_list;
-    NameLog		    *_Namelog;
-    WorkerLog       *_Workerlog;
+    //char			_Name[7];
+    vector<char>	_Table_list;
+    int             _Num_pair;
+    //int             _Tlist_size;
+    Application     *_App;
     int			    _Csize;
     int			    _Psize;
     int			    _Ndata;
+    long            _Chunk_size;
+    bool            end_flag;
  protected:
     virtual string	erase_space(const string &s0,const int ip);
     virtual int		argument(int argc,char *argv[],char **wargv);
     virtual int		argument(int argc,char *argv[],string &main_argv);
-    virtual int		for_worker(int &retry,char *ctable,int argc2,
-                               char **wargv);
-    virtual void	for_worker(int &retry,char *ctable,int &ia,
-                               string &argv_joblist);
+    //virtual int		for_worker(int &retry,char *ctable,int argc2,
+    virtual int		for_worker(char *ctable,int argc2, char **wargv);
+    //virtual void	for_worker(int &retry,char *ctable,int &ia, string &argv_joblist);
     virtual string	replace_pattern(const string &pattern,
                                     const string &position,
                                     const string &option);
+    virtual void request_tasks(const int &myid);
+    virtual bool    has_next_task() {
+        return _Table_list.size() >= _Csize;
+    }
+    virtual void end_flag_on() {
+        end_flag = true;
+    }
  public:
-    Mpidp() {
+    Mpidp() : end_flag(false) {
 #ifdef DEBUG
         cout << "Constructing Mpidp.\n";
 #endif
@@ -100,13 +98,18 @@ class Mpidp
         cout << "Destructing Mpidp.\n";
 #endif
     }
-    virtual void read_table(int argc,char *argv[],int &ntry,
+    virtual void read_table(int argc,char *argv[],//int &ntry,
                             ofstream &logout);
-    virtual int  master0(const int &nproc);
-    virtual int	 master(const int &nproc);
+    virtual int  master0(int argc, char *argv[], const int &nproc);
+    //virtual int	 master(const int &nproc);
     virtual void worker(int &myid,char *hostname,int argc,
                         char *argv[]);
-    virtual void write_table(const int &nproc,ofstream &logout);
+    virtual void master_thread(const int nproc);
+    virtual void worker_thread(const int nwargv, const int arglen, const int argc, char *argv[], const int myid, const int myid2);
+    //virtual void write_table(const int &nproc,ofstream &logout);
+    virtual bool get_end_flag() {
+        return end_flag;
+    }
 };
 
 #endif

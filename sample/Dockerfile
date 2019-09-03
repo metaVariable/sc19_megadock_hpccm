@@ -69,7 +69,7 @@ RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://
 ENV LD_LIBRARY_PATH=/usr/local/openmpi/lib:$LD_LIBRARY_PATH \
     PATH=/usr/local/openmpi/bin:$PATH
 
-COPY ./megadock-5.0-alpha-706cb91 /workspace
+COPY ./megadock-5.0 /workspace
 
 COPY ./Makefile /workspace/Makefile
 

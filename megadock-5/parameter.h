@@ -1,21 +1,6 @@
 /*
- * Copyright (C) 2014 Tokyo Institute of Technology
- *
- *
+ * Copyright (C) 2019 Tokyo Institute of Technology
  * This file is part of MEGADOCK.
- * MEGADOCK is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * MEGADOCK is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MEGADOCK.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 //============================================================================//
@@ -128,7 +113,12 @@ public:
 #endif
         delete [] _Zangle;
     }
-    virtual void          initialize(int argc,char *argv[]) = 0;
+#ifdef MPI_DP
+    virtual void          initialize();
+#else
+    virtual void          initialize(int argc,char *argv[]);
+#endif
+    virtual void          process_args(int argc,char *argv[]) = 0;
     virtual float         atom_radius(const string &atype);
     virtual float         atom_charge(const string &atype);
     virtual float         atom_ace(const string &atype);

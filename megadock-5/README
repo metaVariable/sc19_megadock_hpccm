@@ -1,17 +1,18 @@
 
-              M E G A D O C K  version 4.0.2        R E A D M E 
+              M E G A D O C K  version 5.0.0        R E A D M E 
 ===============================================================================
 
-This is the README file of the MEGADOCK release 4.0.2 program. 
+This is the README file of the MEGADOCK release 5.0.0 program. 
 MEGADOCK is a ZDOCK like protein-protein docking program suitable
 for executing multiple docking jobs on heterogeneous supercomputers.
 It optimizes shape complementarity (rPSC function), electrostatic energies,
 and desolvation free energies (RDE function) using Fast Fourier Transform
 algorithm.
 
-MEGADOCK version 4 assumes running on GPU-based supercomputer like TSUBAME 2.5,
-Tokyo Institute of Technology, Japan. However, you can compile and run 
-the program on other cluster systems or personal computers by modifying 
+MEGADOCK version 5 assumes running on GPU-based supercomputer like TSUBAME 3.0,
+Tokyo Institute of Technology, Japan, and AI Bridging Cloud Infrastructure (ABCI),
+Advanced Institute of Science and Technology, Japan. However, you can compile 
+and run the program on other cluster systems or personal computers by modifying 
 appropriate parameters in Makefile.
 
 
@@ -175,5 +176,5 @@ environmental variable such as $OMP_NUM_THREADS.
 | Contact |
 +---------+
 
-Email: megadock@bi.cs.titech.ac.jp
+Email: megadock@bi.c.titech.ac.jp
 URL: http://www.bi.cs.titech.ac.jp/megadock

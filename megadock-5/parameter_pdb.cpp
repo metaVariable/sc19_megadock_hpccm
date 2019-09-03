@@ -1,21 +1,6 @@
 /*
- * Copyright (C) 2014 Tokyo Institute of Technology
- *
- *
+ * Copyright (C) 2019 Tokyo Institute of Technology
  * This file is part of MEGADOCK.
- * MEGADOCK is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * MEGADOCK is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MEGADOCK.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 //============================================================================//
@@ -34,11 +19,9 @@
 using namespace std;
 
 //============================================================================//
-void ParameterPDB::initialize(int argc,char *argv[])
+void ParameterPDB::process_args(int argc, char *argv[])
 //============================================================================//
 {
-    default_param();
-
     for( int i = 0 ; i < 3 ; i++ ) { //Receptor PDB, Ligand PDB, Outfile
         _IO_flag[i] = 0;
     }
@@ -241,11 +224,7 @@ void ParameterPDB::initialize(int argc,char *argv[])
             break;
         }
     }
-
     pdb_step();
-    parameter_set();
-
-    return;
 }
 
 //============================================================================//

@@ -62,7 +62,7 @@ Stage0 += openmpi(
 )
 
 # MEGADOCK
-Stage0 += copy(src='./megadock-5.0-alpha-706cb91', dest='/workspace')
+Stage0 += copy(src='./megadock-5.0', dest='/workspace')
 Stage0 += copy(
     src='./Makefile',
     dest='/workspace/Makefile'

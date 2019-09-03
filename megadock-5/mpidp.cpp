@@ -1,28 +1,13 @@
 /*
- * Copyright (C) 2014 Tokyo Institute of Technology 
- *
- * 
+ * Copyright (C) 2019 Tokyo Institute of Technology
  * This file is part of MEGADOCK.
- * MEGADOCK is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * MEGADOCK is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MEGADOCK.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 //============================================================================//
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : Mpidp
+//  Class Name : MPIDP
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
@@ -31,6 +16,8 @@
 #include "mpidp.h"
 
 #define LASTUPDATED "2014/4/30"
+#define MASTER_PROCESS_ID 0
+#define MASTER_THREAD_ID 0
 
 #ifndef SYSTEMCALL
 int application(int argc,char *argv[]);
@@ -46,6 +33,7 @@ int main(int argc,char *argv[])
     int 		nproc, myid, resultlen;		// for MPI parameters
     char		hostname[MPI_MAX_PROCESSOR_NAME];
     
+    struct timeval et1, et2;
     // Preparation using MPI
     MPI_Init(&argc,&argv);
     stime = MPI_Wtime();
@@ -56,9 +44,10 @@ int main(int argc,char *argv[])
     MPI_Gather(hostname,MPI_MAX_PROCESSOR_NAME,MPI_CHAR,
                hostall,MPI_MAX_PROCESSOR_NAME,MPI_CHAR,
                0,MPI_COMM_WORLD);
-    
+
     // for master process
-    if( myid == 0 ){
+    if( myid == MASTER_PROCESS_ID ){
+        gettimeofday(&et1,NULL);
         string log_file = "./master.log";		// Default log file name
         for( int i = 1 ; i < argc ; i++ ) {
             if( !strncmp(argv[i],"-lg",3) ) {
@@ -105,47 +94,39 @@ int main(int argc,char *argv[])
         delete [] shost;
     }
     
-    if( myid == 0 ) {			// for master
-        int ntry;				// Upper limit of the number of retries
+    if( myid == MASTER_PROCESS_ID ) {			// for master
+        //int ntry;				// Upper limit of the number of retries
         int eflag;				// return flag
         
         // Read command options and JOB list
-        mpidp.read_table(argc,argv,ntry,logout);
+        mpidp.read_table(argc,argv,logout);
         
-        if( ntry == 0 ) {			// case of NO retry
-            eflag = mpidp.master0(nproc);	// = 0 (MPI_Finalize) or 1 (MPI_Abort)
-            //      eflag = mpidp.master(nproc);	// = 0 (MPI_Finalize) or 1 (MPI_Abort)
-        }
-        else {
-            eflag = mpidp.master(nproc);	// = 1 (MPI_Abort)
-        }
-        
-        mpidp.write_table(nproc,logout);	// write JOB and Workers report
-        
-        if( eflag ) {
-            etime = MPI_Wtime();
-            logout << "\nElapsed time  = " << etime - stime << " sec." << endl;
-            MPI_Abort(MPI_COMM_WORLD,1);
-        }
+        eflag = mpidp.master0(argc, argv, nproc);	// = 0 (MPI_Finalize) or 1 (MPI_Abort)
     }
     else {				// for workers
         mpidp.worker(myid,hostname,argc,argv);
     }
     
     etime = MPI_Wtime();
-    
+
+    printf("\nTotal time (process %5d)       = %8.2f sec.\n", myid, etime - stime);
+
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
     
-    if( !myid ) {
-        logout << "\nElapsed time  = " << etime - stime << " sec." << endl;
+    if( myid == MASTER_PROCESS_ID ) {
+        gettimeofday(&et2,NULL);
+        const float total_time = (et2.tv_sec-et1.tv_sec + (float)((et2.tv_usec-et1.tv_usec)*1e-6));
+        logout << "\nElapsed time  = " << total_time << " sec." << endl;
+        printf("\nTotal time (entire process)       = %8.2f sec.\n", total_time);
     }
     
     return 0;
 }
 
+
 //============================================================================//
-void Mpidp::read_table(int argc,char *argv[],int &ntry,ofstream &logout)
+void Mpidp::read_table(int argc,char *argv[],ofstream &logout)
 // Read command options and JOB list
 //============================================================================//
 {
@@ -156,8 +137,9 @@ void Mpidp::read_table(int argc,char *argv[],int &ntry,ofstream &logout)
     _Title = "MasterProc";      // TITLE (initialization)
     _Param = "MPIDP";			// PARAM data (initialization)
     _Psize = _Param.size() + 1;
+    _Chunk_size = 1;
     _Out_option = 0;
-    _Ntry = 0;                  // Number retrying limit
+    //_Ntry = 0;                  // Number retrying limit
     _Worker_life = 3;			// Worker life (default=3)
     
     // for MPIDP options
@@ -166,13 +148,17 @@ void Mpidp::read_table(int argc,char *argv[],int &ntry,ofstream &logout)
             _Table_file = argv[++i];
             logout << "Table file    : -tb " << _Table_file << endl;
         }
+        if( !strncmp(argv[i],"-ch",3) ) {
+            _Chunk_size = atoi(argv[++i]);
+            if (_Chunk_size <= 0) {
+                cerr << "[ERROR] Chunk size must be a positive integer!" << endl;
+                exit(1);
+            }
+            logout << "Chunk size    : -ch " << _Chunk_size << endl;
+        }
         else if( !strncmp(argv[i],"-ot",3) ) {
             _Out_option = atoi(argv[++i]);
             logout << "Output option : -ot " << _Out_option << endl;
-        }
-        else if( !strncmp(argv[i],"-rt",3) ) {
-            _Ntry = atoi(argv[++i]);
-            logout << "Retry option  : -rt " << _Ntry << endl;
         }
         else if( !strncmp(argv[i],"-wl",3) ) {
             _Worker_life = atoi(argv[++i]);
@@ -190,6 +176,7 @@ void Mpidp::read_table(int argc,char *argv[],int &ntry,ofstream &logout)
     int oflag = 0;
     for( int i = 1 ; i < argc ; i++ ) {
         if( !strncmp(argv[i],"-tb",3) ||
+            !strncmp(argv[i],"-ch",3) ||
             !strncmp(argv[i],"-ot",3) ||
             !strncmp(argv[i],"-rt",3) ||
             !strncmp(argv[i],"-wl",3) ||
@@ -219,8 +206,10 @@ void Mpidp::read_table(int argc,char *argv[],int &ntry,ofstream &logout)
         MPI_Abort(MPI_COMM_WORLD,1);
         exit(1);
     }
-    
-    // read JOB list file
+
+    _Num_pair = 0;
+
+    // read JOB list file (calculate csize)
     while(1) {
         if( !getline(Input,table) ) break;
         
@@ -240,28 +229,55 @@ void Mpidp::read_table(int argc,char *argv[],int &ntry,ofstream &logout)
             logout << "PARAM=" << _Param << endl;
         }
         else {
-            _Table_list.push_back(table);
-            
-            if( _Table_list.back().size() > csize ) {
-                csize = _Table_list.back().size();
-            }
+            csize = (table.size() > csize) ? table.size() : csize;
+            _Num_pair++;
         }
     }
     
     logout << endl;
     Input.close();
-    _Csize = csize + 7;
+    _Csize = csize + 1;
     
-    for( int i = 0 ; i < _Table_list[0].size() ; i++ ) {
-        if( _Table_list[0].substr(i,1) == "\t" ) {
+    int line_index = 0;
+    _Table_list.reserve((long) _Csize * _Num_pair);
+    
+    ifstream Input2(_Table_file.c_str(),ios::in);
+    if( !Input2 ) {
+        cerr << "[ERROR] Table file [" << _Table_file
+             << "] was not opened!!" << endl;
+        MPI_Abort(MPI_COMM_WORLD,1);
+        exit(1);
+    }
+
+    // read JOB list file (read lines)
+    while(1) {
+        if( !getline(Input2,table) ) break;
+        
+        table = erase_space(table,7);
+        
+        if( strncmp(table.c_str(),"TITLE=",6) &&
+            strncmp(table.c_str(),"Title=",6) &&
+            strncmp(table.c_str(),"title=",6) &&
+            strncmp(table.c_str(),"PARAM=",6) &&
+            strncmp(table.c_str(),"Param=",6) &&
+            strncmp(table.c_str(),"param=",6) )
+        {
+            copy(table.begin(), table.begin() + _Csize, back_inserter(_Table_list));
+            _Table_list.back() = 0;
+        }
+    }
+    Input2.close();
+
+    for( int i = 0 ; i < _Csize; i++ ) {
+        if( _Table_list[i] == '\t' ) {
             ndata ++;
         }
     }
     
     // According to _Name data
-    _Ndata = ndata + 2;
+    _Ndata = ndata + 1;
     
-    ntry = _Ntry;
+    //ntry = _Ntry;
     
     return;
 }
@@ -294,22 +310,27 @@ string Mpidp::erase_space(const string &s0,const int ip)
 }
 
 //============================================================================//
-int Mpidp::master0(const int &nproc)
+int Mpidp::master0(int argc, char *argv[], const int &nproc)
 // master process for NO retry
 //============================================================================//
 {
     int	wid;				// Worker id
-    int	retry = 0;			// Retry counter
-    int	ir[2];				// 0:RET and 1:FILE flags 
-    int	tbsize = _Table_list.size();
-    char	end_tb_flag[] = "EndOfTable";	// Table list END flag
-    char	*param = new char[_Psize];	// for PARAM data
+    int		nproc2;
     
-    // for Table list
-    char	**ctable = new char*[tbsize];
-    for( int i = 0 ; i < tbsize ; i++ ) {
-        ctable[i] = new char[_Csize];
+#ifdef _OPENMP
+    #pragma omp parallel
+    {
+        nproc2 = omp_get_num_threads();
+        if(omp_get_thread_num() == 0) {
+            cout << "# Using OpenMP parallelization: " << nproc2 << " threads." << endl;
+        }
     }
+    //printf("#OpenMP version %d\n", _OPENMP);
+#else
+    nproc2 = 1;
+#endif //#ifdef _OPENMP
+
+    char	*param = new char[_Psize];	// for PARAM data
     
     strcpy(param,_Param.c_str());
     
@@ -321,279 +342,28 @@ int Mpidp::master0(const int &nproc)
         MPI_Send(&_Ndata,1,MPI_INT,i,400,MPI_COMM_WORLD);
         MPI_Send(&_Out_option,1,MPI_INT,i,420,MPI_COMM_WORLD);
     }
-    
-    _Namelog = new NameLog[tbsize];
-    _Workerlog = new WorkerLog[nproc];
-    
-    for( int i = 0 ; i < tbsize ; i++ ) {
-        sprintf(_Name,"%05d\t\0",i+1);	// Event number
-        strcpy(ctable[i],_Name);
-        strcat(ctable[i],_Table_list[i].c_str());
-        _Namelog[i].name = _Name;
-        _Namelog[i].exec = 1;		// EXEC flag = 1 (fixed)
-        
-        _Namelog[i].rcode[0].push_back(0);
-        _Namelog[i].rcode[1].push_back(-1);
-        _Namelog[i].rcode[2].push_back(0);
-        
-        if( i < nproc-1 ) {
-            _Namelog[i].worker.push_back(i+1);
-            _Workerlog[i+1].name.push_back(_Name);
-            _Workerlog[i+1].rcode.push_back(0);
-            MPI_Send(&retry,1,MPI_INT,i+1,450,MPI_COMM_WORLD);
-            MPI_Send(ctable[i],_Csize,MPI_CHAR,i+1,500,MPI_COMM_WORLD);
-        }
-        else {
-            MPI_Recv(&wid,1,MPI_INT,MPI_ANY_SOURCE,600,MPI_COMM_WORLD,&_Status);
-            MPI_Recv(ir,2,MPI_INT,wid,550,MPI_COMM_WORLD,&_Status);
-            int nameno = atoi(_Workerlog[wid].name.back().c_str());
-            _Namelog[nameno-1].rcode[0][0] = 1;
-            _Namelog[nameno-1].rcode[1][0] = ir[0];
-            _Namelog[nameno-1].rcode[2][0] = ir[1];
-            
-            _Workerlog[wid].rcode.back() = 1;
-            
-            _Namelog[i].worker.push_back(wid);
-            _Workerlog[wid].name.push_back(_Name);
-            _Workerlog[wid].rcode.push_back(0);
-            MPI_Send(&retry,1,MPI_INT,wid,450,MPI_COMM_WORLD);
-            MPI_Send(ctable[i],_Csize,MPI_CHAR,wid,500,MPI_COMM_WORLD);
-        }
-    }
-    
-    for( int i = 0 ; i < min(nproc-1,tbsize) ; i++ ) {
-        MPI_Recv(&wid,1,MPI_INT,MPI_ANY_SOURCE,600,MPI_COMM_WORLD,&_Status);
-        MPI_Recv(ir,2,MPI_INT,wid,550,MPI_COMM_WORLD,&_Status);
-        int nameno = atoi(_Workerlog[wid].name.back().c_str());
-        _Namelog[nameno-1].rcode[0][0] = 1;
-        _Namelog[nameno-1].rcode[1][0] = ir[0];
-        _Namelog[nameno-1].rcode[2][0] = ir[1];
-        _Workerlog[wid].rcode.back() = 1;
-        MPI_Send(&retry,1,MPI_INT,wid,450,MPI_COMM_WORLD);
-        MPI_Send(end_tb_flag,_Csize,MPI_CHAR,wid,500,MPI_COMM_WORLD);
-    }
-    
-    delete [] ctable;
-    delete [] param;
-    
-    if( tbsize < nproc-1 ) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
 
-//============================================================================//
-int Mpidp::master(const int &nproc)
-// master process (which can respond at the time of an obstacle)
-//============================================================================//
-{
-    int	wid;				// Worker id
-    int	retry = 0;			// Retry counter
-    int	ir[2];				// 0:RET and 1:FILE flags 
-    int	remain_workers = nproc - 1;	// Effective workers
-    int	tbsize = _Table_list.size();
-    char	end_tb_flag[] = "EndOfTable";	// Table list END flag
-    char	*param = new char[_Psize];	// for PARAM data
 
-    // for Table list
-    char	**ctable = new char*[tbsize];
-    for( int i = 0 ; i < tbsize ; i++ ) {
-        ctable[i] = new char[_Csize];
-    }
-    
-    strcpy(param,_Param.c_str());
-    
-    // The calculation condition is sent to workers. 
-    for( int i = 1 ; i < nproc ; i++ ) {
-        MPI_Send(&_Psize,1,MPI_INT,i,100,MPI_COMM_WORLD);
-        MPI_Send(param,_Psize,MPI_CHAR,i,200,MPI_COMM_WORLD);
-        MPI_Send(&_Csize,1,MPI_INT,i,300,MPI_COMM_WORLD);
-        MPI_Send(&_Ndata,1,MPI_INT,i,400,MPI_COMM_WORLD);
-        MPI_Send(&_Out_option,1,MPI_INT,i,420,MPI_COMM_WORLD);
-    }
-    
-    _Namelog = new NameLog[tbsize];
-    _Workerlog = new WorkerLog[nproc];
-    
-    // JOB management table initialization
-    for( int i = 0 ; i < tbsize ; i++ ) {
-        sprintf(_Name,"%05d\t\0",i+1);	// Event number
-        strcpy(ctable[i],_Name);
-        strcat(ctable[i],_Table_list[i].c_str());
-        _Namelog[i].name = _Name;
-        _Namelog[i].exec = 0;		// EXEC flag increment(=retry)
-        _Namelog[i].status = 0;		// calculation control flag
-    }
-    
-    // Worker management table initialization
-    for( int i = 1 ; i < nproc ; i++ ) {
-        _Workerlog[i].failure = 0;		// Initialize failure counter
-    }
-    
-    int itry = 0;
-    int jstart = 0;
-    int init_counter = 0;			// initial loop counter
-    
-    while(1) {
-        bool table_remains = false;		// Remains of table check flag
-        int ic;
-        
-        for( ic = itry ; ic < _Ntry+1 ; ic++ ) {
-            for( int j = jstart ; j < tbsize ; j++ ) {
-                if( _Namelog[j].exec == ic && _Namelog[j].status < _Ntry+1 ) {
-                    table_remains = true;
-                    
-                    if( init_counter < nproc-1 ) {
-                        wid = ++init_counter;
-                    }
-                    
-                    retry = _Namelog[j].exec;
-                    _Namelog[j].exec ++;
-                    
-                    _Namelog[j].rcode[0].push_back(0);
-                    _Namelog[j].rcode[1].push_back(-1);
-                    _Namelog[j].rcode[2].push_back(0);
-                    
-                    _Namelog[j].worker.push_back(wid);
-                    _Workerlog[wid].name.push_back(_Namelog[j].name);
-                    _Workerlog[wid].rcode.push_back(0);
-                    MPI_Send(&retry,1,MPI_INT,wid,450,MPI_COMM_WORLD);
-                    MPI_Send(ctable[j],_Csize,MPI_CHAR,wid,500,MPI_COMM_WORLD);
-                    
-                    if( init_counter == nproc-1 ) {
-                        break;
-                    }
-                }
-            }
-            
-            if( table_remains ) {
-                break;
-            }
-        }
-        
-        if( !table_remains ) {			// End of calculations
-            if( _Ntry == 0 ) {			// No retry mode
-                MPI_Send(&retry,1,MPI_INT,wid,450,MPI_COMM_WORLD);
-                MPI_Send(end_tb_flag,_Csize,MPI_CHAR,wid,500,MPI_COMM_WORLD);
-                
-                for( int i = 0 ; i < min(nproc-2,tbsize-1) ; i++ ) {
-                    MPI_Recv(&wid,1,MPI_INT,MPI_ANY_SOURCE,600,MPI_COMM_WORLD,&_Status);
-                    MPI_Recv(ir,2,MPI_INT,wid,550,MPI_COMM_WORLD,&_Status);
-                    int nameno = atoi(_Workerlog[wid].name.back().c_str());
-                    _Namelog[nameno-1].rcode[0][0] = 1;
-                    _Namelog[nameno-1].rcode[1][0] = ir[0];
-                    _Namelog[nameno-1].rcode[2][0] = ir[1];
-                    _Workerlog[wid].rcode.back() = 1;
-                    MPI_Send(&retry,1,MPI_INT,wid,450,MPI_COMM_WORLD);
-                    MPI_Send(end_tb_flag,_Csize,MPI_CHAR,wid,500,MPI_COMM_WORLD);
-                }
-                
-                if( tbsize < nproc-1 ) {
-                    return 1;
-                }
-                else {
-                    return 0;
-                }
-            }
-            else {					// Retry mode
-                return 1;
-            }
-        }
-        
-        do {
-            MPI_Recv(&wid,1,MPI_INT,MPI_ANY_SOURCE,600,MPI_COMM_WORLD,&_Status);
-            MPI_Recv(ir,2,MPI_INT,wid,550,MPI_COMM_WORLD,&_Status);
-            int nameno = atoi(_Workerlog[wid].name.back().c_str());
-            
-            bool wid_check = false;			// Worker ID check flag
-            
-            for( int i = _Namelog[nameno-1].worker.size()-1 ; i >= 0 ; i-- ) {
-                if( _Namelog[nameno-1].worker[i] == wid ) {
-                    _Namelog[nameno-1].rcode[0][i] = 1;
-                    _Namelog[nameno-1].rcode[1][i] = ir[0];
-                    _Namelog[nameno-1].rcode[2][i] = ir[1];
-                    
-                    if( ir[0] == 0 && (ir[1] == 1 || _Out_option == 0) ) {
-                        _Namelog[nameno-1].status = _Ntry+1;
-                    }
-                    else {
-                        _Namelog[nameno-1].status ++;
-                        _Workerlog[wid].failure ++;		// failure counter
-                    }
-                    
-                    wid_check = true;
-                    break;
-                }
-            }
-            
-            _Workerlog[wid].rcode.back() = 1;
-            
-            if( !wid_check ) {
-                cerr << "[ERROR] Woker ID was a mismatch!!" << endl;
-                return 1;
-            }
-            
-            if( _Workerlog[wid].failure >= _Worker_life ) {	// check worker life
-                cerr << "[Warning] Worker " << wid << " starts sleeping." << endl;
-                
-                if( --remain_workers == 0 ) {
-                    cerr << "[ERROR] All wokers were stoped!!" << endl;
-                    return 1;
-                }
-                
-            }
-        } while( _Workerlog[wid].failure >= _Worker_life );	// check worker life
-        
-        itry = ic;
-        
-        for( int j = jstart ; j < tbsize ; j++ ) {
-            if( _Namelog[j].status > _Ntry ) {
-                jstart = j + 1;
-            }
-            else {
-          break;
-            }
-        }
-    }
-    
     /*
-      delete [] ctable;
-      delete [] param;
-      
-      return 0;
-    */
-}
-
-#ifndef SYSTEMCALL
-//============================================================================//
-void Mpidp::worker(int &myid,char *hostname,int argc,char *argv[])
-// worker process for function call
-//============================================================================//
-{
-    int		argc2;		// # of mpidp comand line parameters
-    int		wargc;		// # of application command line parameters
-    int		retry;
-    int		ir[2];
-    struct stat	buf;
-    
-    MPI_Recv(&_Psize,1,MPI_INT,0,100,MPI_COMM_WORLD,&_Status);
-    char *param = new char[_Psize];
-    MPI_Recv(param,_Psize,MPI_CHAR,0,200,MPI_COMM_WORLD,&_Status);
-    _Param = param;
-    
-    if( !strncmp(param,"MPIDP",5) ) {
-        cerr << "[ERROR] [PARAM=] was not found in table file!!" << endl;
-        exit(1);
+    const long rem = _Num_pair % nproc;
+    const long quo = _Num_pair / nproc;
+    _Tlist_size = quo * _Csize;
+    int begin_index = 0;
+    vector<MPI_Request> reqs(nproc - 1);
+    vector<MPI_Status> stats(nproc - 1);
+    for (int i = 0; i < nproc - 1; i++) {
+        const long tlist_size = _Tlist_size + ((i < rem) ? _Csize : 0);
+        MPI_Send(&tlist_size, 1, MPI_LONG, i + 1, 430, MPI_COMM_WORLD);
+        MPI_Isend(_Table_list.data() + begin_index + _Tlist_size , tlist_size, MPI_CHAR, i + 1, 450, MPI_COMM_WORLD, &reqs[i]);
+        begin_index += tlist_size;
     }
-    
-    MPI_Recv(&_Csize,1,MPI_INT,0,300,MPI_COMM_WORLD,&_Status);
-    MPI_Recv(&_Ndata,1,MPI_INT,0,400,MPI_COMM_WORLD,&_Status);
-    MPI_Recv(&_Out_option,1,MPI_INT,0,420,MPI_COMM_WORLD,&_Status);
-    
-    char *ctable = new char[_Csize];
 
+
+    MPI_Waitall(nproc - 1, &reqs[0], &stats[0]);
+
+    _Table_list.resize(_Tlist_size);
+    _Table_list.shrink_to_fit();
+    */
 
     // Correction of a bug
     int arglen = max(_Csize,_Psize);
@@ -607,146 +377,187 @@ void Mpidp::worker(int &myid,char *hostname,int argc,char *argv[])
     for( int i = 1 ; i < _Psize-2 ; i++ ) {
         if( param[i] == ' ' ) nwargv++;
     }
-    char **wargv = new char*[nwargv];
-    for( int i = 0 ; i < nwargv ; i++ ) {
-        wargv[i] = new char[arglen];
+
+    _App = new Application(nproc2);
+    _App->initialize();
+
+#pragma omp parallel
+    {
+        int myid2 = omp_get_thread_num();
+        if (myid2 == 0)
+            master_thread(nproc);
+        else
+            worker_thread(nwargv, arglen, argc, argv, MASTER_PROCESS_ID, myid2);
     }
-    
-    argc2 = argument(argc,argv,wargv);
-    
-    while(1) {
-        MPI_Recv(&retry,1,MPI_INT,0,450,MPI_COMM_WORLD,&_Status);
-        MPI_Recv(ctable,_Csize,MPI_CHAR,0,500,MPI_COMM_WORLD,&_Status);
-        if( !strncmp(ctable,"EndOfTable",10) ) break;	// Table End flag
-        
-        // Preparation using function call
-        wargc = for_worker(retry,ctable,argc2,wargv);
-        //    cout << _Name << " : " << hostname << "(" << myid << ")" << endl;
-        
-        /* for test
-           if( _Out_option ) {
-           cout << "(int)MPI_Wtime() = " << (int)MPI_Wtime() << endl;
-           if( int(MPI_Wtime())%20 == 0 ) {
-           cout << "Worker " << myid << " starts sleeping.\n";
-           sleep(100000);
-           }
-           }
-        */
-        
-        try {
-            throw application(wargc,wargv);	// application's main function
-        }
-        catch(int e) {
-            ir[0] = e;
-        }
-        catch(char *e) {
-            cerr << "[ERROR] [application] exception : " << e << endl;
-            ir[0] = -1;
-        }
-        
-        if( _Out_option ) {				// check the output file
-            ir[1] = stat(_Out_file.c_str(),&buf);
-            if( ir[1] == 0 ) {
-                ir[1] = 1;
-            }
-        }
-        else {
-            ir[1] = 0;
-        }
-        
-        MPI_Send(&myid,1,MPI_INT,0,600,MPI_COMM_WORLD);	// Send id
-        MPI_Send(ir,2,MPI_INT,0,550,MPI_COMM_WORLD);
-    }
-    
-    delete [] wargv;
-    delete [] ctable;
     delete [] param;
+    delete _App;
+
+    return 0;
+}
+
+//============================================================================//
+void Mpidp::worker(int &myid,char *hostname,int argc,char *argv[])
+// worker process for function call
+//============================================================================//
+{
+    int		nproc2;
+    
+#ifdef _OPENMP
+    #pragma omp parallel
+    {
+        nproc2 = omp_get_num_threads();
+        if(omp_get_thread_num() == 0) {
+            cout << "# Using OpenMP parallelization: " << nproc2 << " threads." << endl;
+        }
+    }
+    //printf("#OpenMP version %d\n", _OPENMP);
+#else
+    nproc2 = 1;
+#endif //#ifdef _OPENMP
+    
+    MPI_Recv(&_Psize,1,MPI_INT,MASTER_PROCESS_ID,100,MPI_COMM_WORLD,&_Status);
+    char *param = new char[_Psize];
+    MPI_Recv(param,_Psize,MPI_CHAR,MASTER_THREAD_ID,200,MPI_COMM_WORLD,&_Status);
+    _Param = param;
+    
+    if( !strncmp(param,"MPIDP",5) ) {
+        cerr << "[ERROR] [PARAM=] was not found in table file!!" << endl;
+        exit(1);
+    }
+    
+    MPI_Recv(&_Csize,1,MPI_INT,MASTER_PROCESS_ID,300,MPI_COMM_WORLD,&_Status);
+    MPI_Recv(&_Ndata,1,MPI_INT,MASTER_PROCESS_ID,400,MPI_COMM_WORLD,&_Status);
+    MPI_Recv(&_Out_option,1,MPI_INT,MASTER_PROCESS_ID,420,MPI_COMM_WORLD,&_Status);
+    
+    // Correction of a bug
+    int arglen = max(_Csize,_Psize);
+    for( int i = 0 ; i < argc ; i++ ) {
+        if( strlen(argv[i]) >= arglen ) {
+            arglen = strlen(argv[i]) + 1;
+        }
+    }
+    // Bug fix
+    int nwargv = argc + _Ndata*2;
+    for( int i = 1 ; i < _Psize-2 ; i++ ) {
+        if( param[i] == ' ' ) nwargv++;
+    }
+
+    /*
+    MPI_Recv(&_Tlist_size, 1, MPI_LONG, MASTER_PROCESS_ID, 430, MPI_COMM_WORLD, &_Status);
+    _Table_list.resize(_Tlist_size);
+    MPI_Recv((void*)_Table_list.data(), _Tlist_size, MPI_CHAR, MASTER_PROCESS_ID, 450, MPI_COMM_WORLD, &_Status);
+    */
+    _App = new Application(nproc2);
+    _App->initialize();
+
+#pragma omp parallel
+    {
+        int myid2 = omp_get_thread_num();
+        worker_thread(nwargv, arglen, argc, argv, myid, myid2);
+    }
+    
+    delete [] param;
+    delete _App;
     
     return;
 }
 
-#else
 //============================================================================//
-void Mpidp::worker(int &myid,char *hostname,int argc,char *argv[])
-// worker process for system call
+void Mpidp::master_thread(const int nproc)
 //============================================================================//
 {
-    string	main_argv;		// mpidp command line
-    string	argv_joblist;		// system call command line
-    int		retry;
-    int		ir[2];
-    struct stat 	buf;
-    
-    MPI_Recv(&_Psize,1,MPI_INT,0,100,MPI_COMM_WORLD,&_Status);
-    char *param = new char[_Psize];
-    MPI_Recv(param,_Psize,MPI_CHAR,0,200,MPI_COMM_WORLD,&_Status);
-    _Param = param;
-    
-    MPI_Recv(&_Csize,1,MPI_INT,0,300,MPI_COMM_WORLD,&_Status);
-    MPI_Recv(&_Ndata,1,MPI_INT,0,400,MPI_COMM_WORLD,&_Status);
-    MPI_Recv(&_Out_option,1,MPI_INT,0,420,MPI_COMM_WORLD,&_Status);
-    
-    int ia = argument(argc,argv,main_argv);
-    
-    if( ia == 0 && !strncmp(param,"MPIDP",5) ) {
-        cerr << "[ERROR] [PARAM=] was not found in table file!!" << endl;
-        exit(1);
-    }
-    else if( ia == 1 && strncmp(param,"MPIDP",5) ) {
-        if( myid == 1 ) {
-            cerr << "[WARNING] [PARAM=] in table file was ignored." << endl;
-        }
-    }
-    
-    char *ctable = new char[_Csize];
-    
-    while(1) {
-        MPI_Recv(&retry,1,MPI_INT,0,450,MPI_COMM_WORLD,&_Status);
-        MPI_Recv(ctable,_Csize,MPI_CHAR,0,500,MPI_COMM_WORLD,&_Status);
-        if( !strncmp(ctable,"EndOfTable",10) ) break;	// Table End flag
-        
-        argv_joblist = main_argv;
-        if( ia == 0 ) {
-            argv_joblist += ' ';
-            argv_joblist += _Param;
-        }
-        
-        // Preparation using system call
-        for_worker(retry,ctable,ia,argv_joblist);
-        //    cout << _Name << " : " << hostname << "(" << myid << ")" << endl;
-        
-        /* for test
-           if( _Out_option ) {
-           cout << "(int)MPI_Wtime() = " << (int)MPI_Wtime() << endl;
-           if( int(MPI_Wtime())%20 == 0 ) {
-           cout << "Worker " << myid << " starts sleeping.\n";
-           sleep(100000);
-           }
-           }
-        */
-        
-        ir[0] = system(argv_joblist.c_str());	// system call for application
-        
-        if( _Out_option ) {				// check the output file
-            ir[1] = stat(_Out_file.c_str(),&buf);
-            if( ir[1] == 0 ) {
-                ir[1] = 1;
+    int countdown = nproc - 1;
+    bool end_flag = false;
+
+    while (countdown > 0) {
+        int child_id;
+        MPI_Recv(&child_id, 1, MPI_INT, MPI_ANY_SOURCE, 500, MPI_COMM_WORLD, &_Status); // receive a request from a child process
+
+#pragma omp critical (distribute0)
+        {
+            if (!has_next_task() && !get_end_flag()) {
+                end_flag_on();
+            }
+            if (get_end_flag()) {
+                long send_size = 1;
+                MPI_Send(&send_size, 1, MPI_LONG, child_id, 600, MPI_COMM_WORLD); // send 1
+                char end_char = '\0';
+                MPI_Send(&end_char, 1, MPI_CHAR, child_id, 700, MPI_COMM_WORLD); // send 0 (end of file message)
+                countdown--;
+            } else {
+                long send_size = min(_Chunk_size * _Csize, (long) _Table_list.size());
+                MPI_Send(&send_size, 1, MPI_LONG, child_id, 600, MPI_COMM_WORLD); // send number of tasks to send
+                MPI_Send(_Table_list.data() + _Table_list.size() - send_size, send_size, MPI_CHAR, child_id, 700, MPI_COMM_WORLD); // send tasks
+                _Table_list.resize(_Table_list.size() - send_size);
+                _Table_list.shrink_to_fit();
             }
         }
-        else {
-            ir[1] = 0;
-        }
-        
-        MPI_Send(&myid,1,MPI_INT,0,600,MPI_COMM_WORLD);	// Send id
-        MPI_Send(ir,2,MPI_INT,0,550,MPI_COMM_WORLD);
     }
-    
-    delete [] ctable;
-    delete [] param;
-    
-    return;
 }
-#endif
+
+//============================================================================//
+void Mpidp::worker_thread(const int nwargv, const int arglen, const int argc, char *argv[], const int myid, const int myid2)
+//============================================================================//
+{
+    struct timeval et3, et4;
+    int		wargc;		// # of application command line parameters
+    char **wargv;
+
+#pragma omp critical (alloc)
+    {
+        wargv = new char*[nwargv];
+        for( int i = 0 ; i < nwargv ; i++ ) {
+            wargv[i] = new char[arglen];
+        }
+    }
+    int argc2 = argument(argc,argv,wargv); // # of mpidp comand line parameters
+
+    gettimeofday(&et3,NULL);
+
+    while(1) {
+
+#pragma omp critical (distribute0)
+        {
+            if (!has_next_task() && !get_end_flag()) {
+                if (myid == 0) {
+                    end_flag_on();
+                } else {
+                    request_tasks(myid);
+                }
+            }
+            if (!get_end_flag()) {
+                char ctable[_Csize];
+                strncpy(ctable, _Table_list.data() + _Table_list.size() - _Csize, _Csize);
+
+                wargc = for_worker(ctable,argc2,wargv);
+                _Table_list.resize(_Table_list.size() - _Csize);
+                _Table_list.shrink_to_fit();
+            }
+        }
+        if (get_end_flag()) break;
+
+        try {
+            throw _App->application(wargc,wargv,myid2);	// application's main function
+        }
+        catch(int e) {
+            if (e) {
+                cerr << "_App->application was not successfully finished" << endl;
+                MPI_Abort(MPI_COMM_WORLD,1);
+            }
+        }
+        catch(char *e) {
+            cerr << "[ERROR] [application] exception : " << e << endl;
+            MPI_Abort(MPI_COMM_WORLD,1);
+        }
+
+    }
+    delete [] wargv;
+
+    gettimeofday(&et4,NULL);
+    const float total_time = (et4.tv_sec-et3.tv_sec + (float)((et4.tv_usec-et3.tv_usec)*1e-6));
+    printf("\nTotal time ([proc / thread] %5d / %2d)       = %8.2f sec.\n", myid, myid2, total_time);
+}
+
 
 //============================================================================//
 int Mpidp::argument(int argc,char *argv[],char **wargv)
@@ -757,6 +568,7 @@ int Mpidp::argument(int argc,char *argv[],char **wargv)
     
     for( int i = 0 ; i < argc ; i++ ) {
         if( !strncmp(argv[i],"-tb",3) ||
+            !strncmp(argv[i],"-ch",3) ||
             !strncmp(argv[i],"-ot",3) ||
             !strncmp(argv[i],"-rt",3) ||
             !strncmp(argv[i],"-wl",3) ||
@@ -784,6 +596,7 @@ int Mpidp::argument(int argc,char *argv[],string &main_argv)
             iflag = 0;
         }
         else if( !strncmp(argv[i],"-tb",3) ||
+                 !strncmp(argv[i],"-ch",3) ||
                  !strncmp(argv[i],"-ot",3) ||
                  !strncmp(argv[i],"-rt",3) ||
                  !strncmp(argv[i],"-wl",3) ||
@@ -800,7 +613,7 @@ int Mpidp::argument(int argc,char *argv[],string &main_argv)
 }
 
 //============================================================================//
-int Mpidp::for_worker(int &retry,char *ctable,int argc2,char **wargv)
+int Mpidp::for_worker(char *ctable,int argc2,char **wargv)
 // Preparation using function call version by workers
 //============================================================================//
 {
@@ -809,27 +622,22 @@ int Mpidp::for_worker(int &retry,char *ctable,int argc2,char **wargv)
     string	sparam = _Param;
     char		tag[5], *elem;
     
-    strcpy(_Name,strtok(ctable,"\t"));
+    //strcpy(_Name,strtok(ctable,"\t"));
+    position = "$1";
+    tstock = strtok(ctable,"\t");
+    sparam = replace_pattern(sparam,position,tstock);
     
-    for( int i = 0 ; i < _Ndata-1 ; i++ ) {
+    for( int i = 1 ; i < _Ndata ; i++ ) {
         sprintf(tag,"$%d",i+1);
         position = tag;
         tstock = strtok(NULL,"\t");
-        
-        if( _Out_option == i+1 ) {
-            if( retry ) {
-                sprintf(tag,"%d",retry);
-                tstock += ".";
-                tstock += tag;
-            }
-            _Out_file = tstock;
-        }
         
         // character is replaced
         sparam = replace_pattern(sparam,position,tstock);
     }
     
-    char *param = new char[sparam.size()+1];
+    char param[sparam.size()+1];
+    //char *param = new char[sparam.size()+1];
     strcpy(param,sparam.c_str());
     strcpy(wargv[argc2++],strtok(param," "));
     
@@ -837,57 +645,9 @@ int Mpidp::for_worker(int &retry,char *ctable,int argc2,char **wargv)
         strcpy(wargv[argc2++],elem);
     }
     
-    /*
-      for( int i = 0 ; i < argc2 ; i++ ) {
-      cout << wargv[i] << " ";
-      }
-      cout << endl;
-    */
-    
-    delete [] param;
-    
     return argc2;
 }
 
-//============================================================================//
-void Mpidp::for_worker(int &retry,char *ctable,int &ia,
-                       string &argv_joblist)
-// Preparation using system call version by workers
-//============================================================================//
-{
-    string	position;
-    string	tstock;
-    char		tag[5];
-    
-    strcpy(_Name,strtok(ctable,"\t"));
-    
-    if( ia ) {
-        argv_joblist = strtok(NULL,"\t") + argv_joblist;
-    }
-    else {
-        for( int i = 0 ; i < _Ndata-1 ; i++ ) {
-            sprintf(tag,"$%d",i+1);
-            position = tag;
-            tstock = strtok(NULL,"\t");
-            
-            if( _Out_option == i+1 ) {
-                if( retry ) {
-                    sprintf(tag,"%d",retry);
-                    tstock += ".";
-                    tstock += tag;
-                }
-                _Out_file = tstock;
-            }
-            
-            // character is replaced
-            argv_joblist = replace_pattern(argv_joblist,position,tstock);
-        }
-    }
-    
-    //  cout << argv_joblist << endl;
-    
-    return;
-}
 
 //============================================================================//
 string Mpidp::replace_pattern(const string &pattern,const string &position,
@@ -913,39 +673,15 @@ string Mpidp::replace_pattern(const string &pattern,const string &position,
 }
 
 //============================================================================//
-void Mpidp::write_table(const int &nproc,ofstream &logout)
-// write JOB and Workers report
+void Mpidp::request_tasks(const int &myid)
 //============================================================================//
 {
-    // JOB table
-    logout << "JOB table :" << endl;
-    
-    for( int i = 0 ; i < _Table_list.size() ; i++ ) {
-        logout << _Namelog[i].name << " EXEC=" << _Namelog[i].exec;
-        
-        for( int j = 0 ; j < _Namelog[i].worker.size() ; j++ ) {
-            logout << " (WID=" << _Namelog[i].worker[j];
-            logout << " END=" << _Namelog[i].rcode[0][j];
-            logout << " RET=" << _Namelog[i].rcode[1][j];
-            logout << " FILE=" << _Namelog[i].rcode[2][j] << ")";
-        }
-        logout << endl;
+    MPI_Send(&myid, 1, MPI_INT, 0, 500, MPI_COMM_WORLD); // request num_of_tasks_per_request tasks
+    int task_msg_size;
+    MPI_Recv(&task_msg_size, 1, MPI_LONG, 0, 600, MPI_COMM_WORLD, &_Status); // receive task_msg_size
+    _Table_list.resize(task_msg_size);
+    MPI_Recv(_Table_list.data(), task_msg_size, MPI_CHAR, 0, 700, MPI_COMM_WORLD, &_Status); // receive tasks
+    if (_Table_list[0] == 0) { // if received end of file message
+        end_flag_on();
     }
-    
-    // Worker table
-    logout << "\nWorker table :" << endl;
-    logout << "no.\t#exec\tdetail" << endl; 
-    for( int i = 1 ; i < nproc ; i++ ) {
-        logout << i << "\t" << _Workerlog[i].name.size();
-        
-        for( int j = 0 ; j < _Workerlog[i].name.size() ; j++ ) {
-            logout << "\t" << _Workerlog[i].name[j] << "\t" << _Workerlog[i].rcode[j];
-        }
-        logout << endl;
-    }
-    
-    delete [] _Workerlog;
-    delete [] _Namelog;
-    
-    return;
 }

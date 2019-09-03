@@ -7,13 +7,13 @@
 # Library PATH and compiler settings           #
 #----------------------------------------------#
 
-CUDA_INSTALL_PATH ?= /apps/t3/sles12sp2/cuda/10.0.130
-CUDA_SAMPLES_PATH ?= /apps/t3/sles12sp2/cuda/10.0.130/NVIDIA_CUDA-10.0_Samples
-FFTW_INSTALL_PATH ?= /home/9/15B16220/.opt/intel-fftw
-CPPCOMPILER       ?= icpc
+CUDA_INSTALL_PATH ?= /apps/cuda/9.2.148.1
+CUDA_SAMPLES_PATH ?= ${CUDA_INSTALL_PATH}/samples
+FFTW_INSTALL_PATH ?= ${HOME}/local/fftw
+CPPCOMPILER       ?= gcc
 MPICOMPILER       ?= mpicxx
 OPTIMIZATION      ?= -O3
-OMPFLAG           ?= -qopenmp
+OMPFLAG           ?= -fopenmp
  # (If you use g++ compiler, please set the value as "-fopenmp".)
 
 #----------------------------------------------#
@@ -32,8 +32,8 @@ USE_MPI    := 1
 #############################################################
 
 #-----------------------------------------------------------------------------------------#
-CUFILES    := fft_process.cu fft_process_pdb.cu fft_process_table.cu main.cu
-CCFILES    := control.cpp control_pdb.cpp control_table.cpp cpu_time.cpp docking_pdb.cpp docking_table.cpp exec_logger.cpp parameter.cpp parameter_pdb.cpp parameter_table.cpp pdb_entry.cpp \
+CUFILES    := fft_process.cu fft_process_table.cu
+CCFILES    := control.cpp control_table.cpp cpu_time.cpp docking_table.cpp exec_logger.cpp parameter.cpp parameter_table.cpp pdb_entry.cpp \
               protein.cpp receptor.cpp ligand.cpp
 
 ifndef USE_GPU
@@ -48,27 +48,31 @@ ifeq ($(USE_GPU),1)
      NVCCFLAGS  += -DCUFFT
      ifeq ($(USE_MPI),1)
           CCFILES    += mpidp.cpp
+          CUFILES    += application.cu
           EXECUTABLE := megadock-gpu-dp
           COMPILER    = $(MPICOMPILER) -std=c++11
           CXXFLAGS   += -DMPI_DP
           NVCCFLAGS  += -DMPI_DP
           OBJDIRPR   := gm
      else     
+          CUFILES    += fft_process_pdb.cu main.cu
+          CCFILES    += control_pdb.cpp docking_pdb.cpp parameter_pdb.cpp
           EXECUTABLE := megadock-gpu
           COMPILER    = $(CPPCOMPILER) -std=c++11
           OBJDIRPR   := gs
      endif
 else
      CUFILES :=
-     CCFILES += fft_process.cpp fft_process_pdb.cpp fft_process_table.cpp main.cpp
+     CCFILES += fft_process.cpp fft_process_table.cpp
      ifeq ($(USE_MPI),1)
-          CCFILES    += mpidp.cpp
+          CCFILES    += mpidp.cpp application.cpp
           EXECUTABLE := megadock-dp
           COMPILER    = $(MPICOMPILER) -std=c++11
           CXXFLAGS   += -DMPI_DP
           NVCCFLAGS  += -DMPI_DP
           OBJDIRPR   := cm
      else
+          CCFILES    += control_pdb.cpp docking_pdb.cpp parameter_pdb.cpp fft_process_pdb.cpp main.cpp
           EXECUTABLE := megadock
           COMPILER    = $(CPPCOMPILER) -std=c++11
           OBJDIRPR   := cs
@@ -196,6 +200,9 @@ makedirectories :
 decoygen : decoygen.cpp
 	$(VERBOSE)$(CPPCOMPILER) decoygen.cpp -lm -o decoygen
 
+calcrg : calcrg.cpp
+	$(VERBOSE)$(CPPCOMPILER) calcrg.cpp -o calcrg
+
 .PHONY : clean allclean
 clean :
 	$(VERBOSE)rm -rf $(ROOTOBJDIR)
@@ -203,4 +210,4 @@ clean :
 
 allclean :
 	$(VERBOSE)rm -rf obj_cs obj_gs obj_cm obj_gm
-	$(VERBOSE)rm -f megadock megadock-gpu megadock-dp megadock-gpu-dp decoygen
+	$(VERBOSE)rm -f megadock megadock-gpu megadock-dp megadock-gpu-dp decoygen calcrg

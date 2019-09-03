@@ -1,4 +1,5 @@
-REMARK  This file is from ZLAB protein-protein docking benchmark 4.0.
+REMARK  MEGADOCK 5.0 sample input file (ligand)
+REMARK  This file is from ZLAB protein-protein docking benchmark.
 REMARK  1GCQ_l_b.pdb
 ATOM    926  N   GLY C 591      27.114  19.683  28.266  1.00 23.68           N  
 ATOM    927  CA  GLY C 591      25.886  18.885  28.568  1.00 24.74           C  
