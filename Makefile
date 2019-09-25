@@ -200,9 +200,6 @@ makedirectories :
 decoygen : decoygen.cpp
 	$(VERBOSE)$(CPPCOMPILER) decoygen.cpp -lm -o decoygen
 
-calcrg : calcrg.cpp
-	$(VERBOSE)$(CPPCOMPILER) calcrg.cpp -o calcrg
-
 .PHONY : clean allclean
 clean :
 	$(VERBOSE)rm -rf $(ROOTOBJDIR)
@@ -210,4 +207,4 @@ clean :
 
 allclean :
 	$(VERBOSE)rm -rf obj_cs obj_gs obj_cm obj_gm
-	$(VERBOSE)rm -f megadock megadock-gpu megadock-dp megadock-gpu-dp decoygen calcrg
+	$(VERBOSE)rm -f megadock megadock-gpu megadock-dp megadock-gpu-dp decoygen
