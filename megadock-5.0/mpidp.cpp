@@ -1,13 +1,28 @@
 /*
- * Copyright (C) 2019 Tokyo Institute of Technology
+ * Copyright (C) 2014 Tokyo Institute of Technology 
+ *
+ * 
  * This file is part of MEGADOCK.
+ * MEGADOCK is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MEGADOCK is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MEGADOCK.  If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
 //============================================================================//
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : MPIDP
+//  Class Name : Mpidp
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
@@ -137,7 +152,8 @@ void Mpidp::read_table(int argc,char *argv[],ofstream &logout)
     _Title = "MasterProc";      // TITLE (initialization)
     _Param = "MPIDP";			// PARAM data (initialization)
     _Psize = _Param.size() + 1;
-    _Chunk_size = 1;
+    _Smallest_chunk_size = 1;
+    _Largest_chunk_size = LONG_MAX;
     _Out_option = 0;
     //_Ntry = 0;                  // Number retrying limit
     _Worker_life = 3;			// Worker life (default=3)
@@ -148,13 +164,21 @@ void Mpidp::read_table(int argc,char *argv[],ofstream &logout)
             _Table_file = argv[++i];
             logout << "Table file    : -tb " << _Table_file << endl;
         }
-        if( !strncmp(argv[i],"-ch",3) ) {
-            _Chunk_size = atoi(argv[++i]);
-            if (_Chunk_size <= 0) {
-                cerr << "[ERROR] Chunk size must be a positive integer!" << endl;
+        else if( !strncmp(argv[i],"-ch",3) ) {
+            _Smallest_chunk_size = atoi(argv[++i]);
+            if (_Smallest_chunk_size <= 0) {
+                cerr << "[ERROR] Smallest chunk size must be a positive integer!" << endl;
                 exit(1);
             }
-            logout << "Chunk size    : -ch " << _Chunk_size << endl;
+            logout << "Smallest chunk size    : -ch " << _Smallest_chunk_size << endl;
+        }
+        else if( !strncmp(argv[i],"-lc",3) ) {
+            _Largest_chunk_size = atoi(argv[++i]);
+            if (_Largest_chunk_size <= 0) {
+                cerr << "[ERROR] Largest chunk size must be a positive integer!" << endl;
+                exit(1);
+            }
+            logout << "Largest chunk size    : -ic " << _Largest_chunk_size << endl;
         }
         else if( !strncmp(argv[i],"-ot",3) ) {
             _Out_option = atoi(argv[++i]);
@@ -171,12 +195,17 @@ void Mpidp::read_table(int argc,char *argv[],ofstream &logout)
             logout << "Log file      : -lg " << argv[++i] << endl;
         }
     }
+    if (_Smallest_chunk_size > _Largest_chunk_size) {
+        cerr << "[ERROR] Largest chunk size cannot be smaller than smallest chunk size!" << endl;
+        exit(1);
+    }
     
     // for other(application's) options
     int oflag = 0;
     for( int i = 1 ; i < argc ; i++ ) {
         if( !strncmp(argv[i],"-tb",3) ||
             !strncmp(argv[i],"-ch",3) ||
+            !strncmp(argv[i],"-lc",3) ||
             !strncmp(argv[i],"-ot",3) ||
             !strncmp(argv[i],"-rt",3) ||
             !strncmp(argv[i],"-wl",3) ||
@@ -485,7 +514,9 @@ void Mpidp::master_thread(const int nproc)
                 MPI_Send(&end_char, 1, MPI_CHAR, child_id, 700, MPI_COMM_WORLD); // send 0 (end of file message)
                 countdown--;
             } else {
-                long send_size = min(_Chunk_size * _Csize, (long) _Table_list.size());
+                const long table_list_size = _Table_list.size() / _Csize; 
+                const long chunk_size = min(_Largest_chunk_size, max(_Smallest_chunk_size, table_list_size / nproc));
+                long send_size = min(chunk_size * _Csize, (long) _Table_list.size());
                 MPI_Send(&send_size, 1, MPI_LONG, child_id, 600, MPI_COMM_WORLD); // send number of tasks to send
                 MPI_Send(_Table_list.data() + _Table_list.size() - send_size, send_size, MPI_CHAR, child_id, 700, MPI_COMM_WORLD); // send tasks
                 _Table_list.resize(_Table_list.size() - send_size);
@@ -569,6 +600,7 @@ int Mpidp::argument(int argc,char *argv[],char **wargv)
     for( int i = 0 ; i < argc ; i++ ) {
         if( !strncmp(argv[i],"-tb",3) ||
             !strncmp(argv[i],"-ch",3) ||
+            !strncmp(argv[i],"-lc",3) ||
             !strncmp(argv[i],"-ot",3) ||
             !strncmp(argv[i],"-rt",3) ||
             !strncmp(argv[i],"-wl",3) ||
@@ -597,6 +629,7 @@ int Mpidp::argument(int argc,char *argv[],string &main_argv)
         }
         else if( !strncmp(argv[i],"-tb",3) ||
                  !strncmp(argv[i],"-ch",3) ||
+                 !strncmp(argv[i],"-lc",3) ||
                  !strncmp(argv[i],"-ot",3) ||
                  !strncmp(argv[i],"-rt",3) ||
                  !strncmp(argv[i],"-wl",3) ||

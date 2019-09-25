@@ -7,13 +7,13 @@
 # Library PATH and compiler settings           #
 #----------------------------------------------#
 
-CUDA_INSTALL_PATH ?= /apps/cuda/9.2.148.1
-CUDA_SAMPLES_PATH ?= ${CUDA_INSTALL_PATH}/samples
-FFTW_INSTALL_PATH ?= ${HOME}/local/fftw
-CPPCOMPILER       ?= gcc
+CUDA_INSTALL_PATH ?= /apps/t3/sles12sp2/cuda/10.0.130
+CUDA_SAMPLES_PATH ?= /apps/t3/sles12sp2/cuda/10.0.130/NVIDIA_CUDA-10.0_Samples
+FFTW_INSTALL_PATH ?= /home/9/15B16220/.opt/intel-fftw
+CPPCOMPILER       ?= icpc
 MPICOMPILER       ?= mpicxx
 OPTIMIZATION      ?= -O3
-OMPFLAG           ?= -fopenmp
+OMPFLAG           ?= -qopenmp
  # (If you use g++ compiler, please set the value as "-fopenmp".)
 
 #----------------------------------------------#
@@ -200,9 +200,6 @@ makedirectories :
 decoygen : decoygen.cpp
 	$(VERBOSE)$(CPPCOMPILER) decoygen.cpp -lm -o decoygen
 
-calcrg : calcrg.cpp
-	$(VERBOSE)$(CPPCOMPILER) calcrg.cpp -o calcrg
-
 .PHONY : clean allclean
 clean :
 	$(VERBOSE)rm -rf $(ROOTOBJDIR)
@@ -210,4 +207,4 @@ clean :
 
 allclean :
 	$(VERBOSE)rm -rf obj_cs obj_gs obj_cm obj_gm
-	$(VERBOSE)rm -f megadock megadock-gpu megadock-dp megadock-gpu-dp decoygen calcrg
+	$(VERBOSE)rm -f megadock megadock-gpu megadock-dp megadock-gpu-dp decoygen
