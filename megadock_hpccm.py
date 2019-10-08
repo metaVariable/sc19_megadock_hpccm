@@ -64,12 +64,14 @@ Stage0 += fftw(
     toolchain=compiler.toolchain
 )
 
+OpenMPI_with_verbs = ofed_flag or opa_flag
+
 # OpenMPI
 Stage0 += openmpi(
     version=ompi_version,
     prefix='/usr/local/openmpi',
     cuda=True, 
-    infiniband=True,
+    infiniband=OpenMPI_with_verbs,
     configure_opts=[
         '--enable-mpi-cxx'
         ],
