@@ -22,49 +22,51 @@
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : ControlTable
+//  Class Name : ParameterTable
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
 //============================================================================//
 
-#ifndef ControlTable_h
-#define ControlTable_h 1
+#ifndef ParameterTable_h
+#define ParameterTable_h 1
 
-#include "control.h"
-#include "exec_logger.h"
-#include "parameter_table.h"
-#include "docking_table.h"
+#include "parameter.h"
 
 using namespace std;
 
-class ControlTable : public Control<ParameterTable, DockingTable>
+class ParameterTable : public Parameter
 {
 private:
-    ExecLogger   *_exec_logger;
+    friend class          ControlTable;
+    friend class          DockingTable;
+    friend class          FFTProcessTable;
+#ifdef MPI_DP
+    string            _RecPDB_file;
+    string            _LigPDB_file;
+    int               _IO_flag[3];
+
 protected:
-    virtual void  autogridr(const int &ngrid,vector<int> &ngrid_table);
-    virtual void  autogridl(const int &ngrid,vector<int> &ngrid_table);
-    virtual void  checkgridr();
-    virtual void  checkgridl();
+    virtual void          pdb_step();
+#else
+    string            _Table_file;
+#endif
+
 public:
-    ControlTable(ExecLogger *pexec_logger,Parallel *pparallel,ParameterTable *pparameter)
-        : _exec_logger(pexec_logger),Control<ParameterTable, DockingTable>(pparallel,pparameter) {
+    ParameterTable(Parallel *pparallel) : Parameter(pparallel) {
 #ifdef DEBUG
-        cout << "Constructing ControlTable.\n";
+        cout << "Constructing ParameterTable.\n";
 #endif
     }
-    virtual ~ControlTable() {
+    virtual           ~ParameterTable() {
 #ifdef DEBUG
-        cout << "Destructing ControlTable.\n";
+        cout << "Destructing ParameterTable.\n";
 #endif
     }
-    virtual void  initialize(bool verbose);
-    virtual void  prepare(string rec_file, string lig_file, string out_file);
-    virtual void  execute();
-    virtual string input_file() {
-        return _parameter->_Table_file;
-    }
+    virtual void          process_args(int argc,char *argv[]);
+    using                 Parameter::initialize;
+    virtual void          initialize(ParameterTable *pparameter);
+    virtual void          output_file_name(const string rec_file, const string lig_file);
 };
 
 #endif

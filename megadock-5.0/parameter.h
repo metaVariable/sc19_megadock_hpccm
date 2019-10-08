@@ -128,7 +128,12 @@ public:
 #endif
         delete [] _Zangle;
     }
-    virtual void          initialize(int argc,char *argv[]) = 0;
+#ifdef MPI_DP
+    virtual void          initialize();
+#else
+    virtual void          initialize(int argc,char *argv[]);
+#endif
+    virtual void          process_args(int argc,char *argv[]) = 0;
     virtual float         atom_radius(const string &atype);
     virtual float         atom_charge(const string &atype);
     virtual float         atom_ace(const string &atype);

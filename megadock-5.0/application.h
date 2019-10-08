@@ -22,41 +22,51 @@
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : ParameterTable
+//  Class Name : Application
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
 //============================================================================//
 
-#ifndef ParameterTable_h
-#define ParameterTable_h 1
+#ifndef Application_h
+#define Application_h 1
 
-#include "parameter.h"
+#include "cpu_time.h"
+#include "exec_logger.h"
+#include "control_pdb.h"
+#include "control_table.h"
 
-using namespace std;
-
-class ParameterTable : public Parameter
+class Application
 {
 private:
-    friend class          ControlTable;
-    friend class          DockingTable;
-    friend class          FFTProcessTable;
-    string            _Table_file;
+    Application(Application &c) {}
+    const Application & operator=(const Application &c);
+
+    int nproc2;
+    int device_count_gpu;
+    Parallel  **_parallels;
+    ExecLogger   **_exec_loggers;
+    ControlTable   **_controls;
+    ParameterTable **_parameters;
 
 public:
-    ParameterTable(Parallel *pparallel) : Parameter(pparallel) {
-#ifdef DEBUG
-        cout << "Constructing ParameterTable.\n";
-#endif
+    Application(const int nproc2) : nproc2(nproc2) {}
+    virtual ~Application() {
+#pragma omp parallel for
+        for (int i = 0; i < nproc2; i++) {
+            delete _exec_loggers[i];
+            delete _controls[i];
+            delete _parallels[i];
+            delete _parameters[i];
+        }
+
+        delete [] _parallels;
+        delete [] _exec_loggers;
+        delete [] _controls;
+        delete [] _parameters;
     }
-    virtual           ~ParameterTable() {
-#ifdef DEBUG
-        cout << "Destructing ParameterTable.\n";
-#endif
-    }
-    virtual void          initialize(int argc,char *argv[]);
-    virtual void          initialize(ParameterTable *pparameter);
-    virtual void          output_file_name(const string rec_file, const string lig_file);
+    virtual void initialize();
+    virtual int application(int argc, char *argv[], int myid2);
 };
 
 #endif

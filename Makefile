@@ -32,8 +32,8 @@ USE_MPI    := 1
 #############################################################
 
 #-----------------------------------------------------------------------------------------#
-CUFILES    := fft_process.cu fft_process_pdb.cu fft_process_table.cu main.cu
-CCFILES    := control.cpp control_pdb.cpp control_table.cpp cpu_time.cpp docking_pdb.cpp docking_table.cpp exec_logger.cpp parameter.cpp parameter_pdb.cpp parameter_table.cpp pdb_entry.cpp \
+CUFILES    := fft_process.cu fft_process_table.cu
+CCFILES    := control.cpp control_table.cpp cpu_time.cpp docking_table.cpp exec_logger.cpp parameter.cpp parameter_table.cpp pdb_entry.cpp \
               protein.cpp receptor.cpp ligand.cpp
 
 ifndef USE_GPU
@@ -48,27 +48,31 @@ ifeq ($(USE_GPU),1)
      NVCCFLAGS  += -DCUFFT
      ifeq ($(USE_MPI),1)
           CCFILES    += mpidp.cpp
+          CUFILES    += application.cu
           EXECUTABLE := megadock-gpu-dp
           COMPILER    = $(MPICOMPILER) -std=c++11
           CXXFLAGS   += -DMPI_DP
           NVCCFLAGS  += -DMPI_DP
           OBJDIRPR   := gm
      else     
+          CUFILES    += fft_process_pdb.cu main.cu
+          CCFILES    += control_pdb.cpp docking_pdb.cpp parameter_pdb.cpp
           EXECUTABLE := megadock-gpu
           COMPILER    = $(CPPCOMPILER) -std=c++11
           OBJDIRPR   := gs
      endif
 else
      CUFILES :=
-     CCFILES += fft_process.cpp fft_process_pdb.cpp fft_process_table.cpp main.cpp
+     CCFILES += fft_process.cpp fft_process_table.cpp
      ifeq ($(USE_MPI),1)
-          CCFILES    += mpidp.cpp
+          CCFILES    += mpidp.cpp application.cpp
           EXECUTABLE := megadock-dp
-          COMPILER    = $(MPICOMPILER)
+          COMPILER    = $(MPICOMPILER) -std=c++11
           CXXFLAGS   += -DMPI_DP
           NVCCFLAGS  += -DMPI_DP
           OBJDIRPR   := cm
      else
+          CCFILES    += control_pdb.cpp docking_pdb.cpp parameter_pdb.cpp fft_process_pdb.cpp main.cpp
           EXECUTABLE := megadock
           COMPILER    = $(CPPCOMPILER) -std=c++11
           OBJDIRPR   := cs
@@ -103,15 +107,15 @@ ifeq ($(USE_GPU),1)
 endif
 
 # Warning flags
-CXXWARN_FLAGS := # -W -Wall \
-	# -Wimplicit \
-	# -Wformat \
-	# -Wparentheses \
-	# -Wmultichar \
-	# -Wtrigraphs \
-	# -Wpointer-arith \
-	# -Wreturn-type \
-	# -Wno-unused-function
+CXXWARN_FLAGS := #	-W -Wall \
+#	-Wimplicit \
+#	-Wformat \
+#	-Wparentheses \
+#	-Wmultichar \
+#	-Wtrigraphs \
+#	-Wpointer-arith \
+#	-Wreturn-type \
+#	-Wno-unused-function
 
 # Compiler-specific flags
 NVCCFLAGS += 

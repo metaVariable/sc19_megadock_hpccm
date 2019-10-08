@@ -3,16 +3,14 @@ CWD=`pwd`
 
 # default params
 INTERACTIVE=${INTERACTIVE:-"1"}
-ENABLE_TSV=${ENABLE_TSV:-"1"}
 TABLE_ITEM_MAX=${TABLE_ITEM_MAX:-"100000"}
-TSV_SIZE=${TSV_SIZE:-"50"}
 
 # args
 if [ $# -lt 4 ] ; then
   echo "Usage: $0 [RELATIVE_ROOT] [INPUT_DIR] [RECEPTOR_MATCH] [LIGAND_MATCH] [TABLE_TITLE]"
   echo "e.g.) $0 . data \*_r.pdb \*_l.pdb test"
   echo "e.g.) RUNTIME_RELATIVE_ROOT=/ $0 . data \*_r.pdb \*_l.pdb test"
-  echo "e.g.) INERACTIVE=0 TABLE_ITEM_MAX=100 TSV_SIZE=50 $0 . data \*_r.pdb \*_l.pdb test"
+  echo "e.g.) INERACTIVE=0 TABLE_ITEM_MAX=100 $0 . data \*_r.pdb \*_l.pdb test"
   exit
 fi
 
@@ -41,9 +39,7 @@ TABLE_DIR             = ${BASE_TABLE_DIR} \n\
 OUTPUT_DIR            = ${BASE_OUTPUT_DIR} \n\
 # OPTIONS \n\
 TABLE_ITEM_MAX        = ${TABLE_ITEM_MAX} \n\
-TSV_SIZE              = ${TSV_SIZE} \n\
 INTERACTIVE           = ${INTERACTIVE} \n\
-ENABLE_TSV            = ${ENABLE_TSV} \n\
 "
 
 INPUT_DIR="${RELATIVE_ROOT}/${BASE_INPUT_DIR}"
@@ -157,65 +153,4 @@ done
 echo
 echo
 echo "Table file is generated at:"
-echo "  $TABLE_FILE"
-
-####################################
-# generate tsv
-####################################
-
-if [ $ENABLE_TSV -eq 0 ] ; then exit; fi
-
-echo 
-echo "> creating tsv files ..."
-echo
-
-TSV_DIR="${TABLE_DIR}/tsv"
-RUNTIME_TSV_DIR="${RUNTIME_TABLE_DIR}/tsv"
-RUNTIME_TSV_DIR=${RUNTIME_TSV_DIR/"//"/"/"}
-
-rm -rf ${TSV_DIR}
-mkdir -p ${TSV_DIR}
-
-# delete header
-sed '1,2d' ${TABLE_FILE} > "${TABLE_FILE}.tmp"
-
-# split a table into tsv
-opts="--numeric-suffixes --lines=${TSV_SIZE} --suffix-length=5"
-split ${opts} "${TABLE_FILE}.tmp" "${TSV_DIR}/tsv."
-rm -f "${TABLE_FILE}.tmp"
-
-# create table-tsv
-tsv_targets=$(ls ${TSV_DIR})
-num_tsv=`echo $tsv_targets | wc -w`
-
-# reset table
-rm -f "$TABLE_FILE"
-touch "$TABLE_FILE"
-
-# write header
-echo "TITLE=$TABLE_TITLE" >> "$TABLE_FILE"
-echo "PARAM=-I \$1 $common_option" >> "$TABLE_FILE"
-
-# set counter
-progress_bar='####################'
-progress_ratio=${#progress_bar}
-count_max=$num_tsv
-count=0
-
-# write body
-for tsv in $tsv_targets ; do
-
-  count=$(( count + 1 ))
-  # write a line
-  echo -e "${RUNTIME_TSV_DIR}/${tsv}" >> "$TABLE_FILE"
-
-  # show progress
-  progress=$(( count * progress_ratio / count_max ))
-  echo -ne "\r[\t$count / $count_max ] ${progress_bar:0:$progress}"
-
-done
-
-echo
-echo
-echo "Table-tsv file is generated at:"
 echo "  $TABLE_FILE"

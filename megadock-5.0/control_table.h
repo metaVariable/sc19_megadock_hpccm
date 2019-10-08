@@ -22,44 +22,55 @@
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : ParameterPDB
+//  Class Name : ControlTable
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
 //============================================================================//
 
-#ifndef ParameterPDB_h
-#define ParameterPDB_h 1
+#ifndef ControlTable_h
+#define ControlTable_h 1
 
-#include "parameter.h"
+#include "control.h"
+#include "exec_logger.h"
+#include "parameter_table.h"
+#include "docking_table.h"
 
 using namespace std;
 
-class ParameterPDB : public Parameter
+class ControlTable : public Control<ParameterTable, DockingTable>
 {
 private:
-    friend class          ControlPDB;
-    friend class          DockingPDB;
-    friend class          FFTProcessPDB;
-    string            _RecPDB_file;
-    string            _LigPDB_file;
-    int               _IO_flag[3];
-
+    ExecLogger   *_exec_logger;
 protected:
-    virtual void          pdb_step();
-
+    virtual void  autogridr(const int &ngrid,vector<int> &ngrid_table);
+    virtual void  autogridl(const int &ngrid,vector<int> &ngrid_table);
+    virtual void  checkgridr();
+    virtual void  checkgridl();
 public:
-    ParameterPDB(Parallel *pparallel) : Parameter(pparallel) {
+    ControlTable(ExecLogger *pexec_logger,Parallel *pparallel,ParameterTable *pparameter)
+        : _exec_logger(pexec_logger),Control<ParameterTable, DockingTable>(pparallel,pparameter) {
 #ifdef DEBUG
-        cout << "Constructing ParameterPDB.\n";
+        cout << "Constructing ControlTable.\n";
 #endif
     }
-    virtual           ~ParameterPDB() {
+    virtual ~ControlTable() {
 #ifdef DEBUG
-        cout << "Destructing ParameterPDB.\n";
+        cout << "Destructing ControlTable.\n";
 #endif
     }
-    virtual void          initialize(int argc,char *argv[]);
+    virtual void  initialize(bool verbose);
+#ifdef MPI_DP
+    virtual void  prepare();
+#else
+    virtual void  prepare(string rec_file, string lig_file, string out_file);
+#endif
+    virtual void  execute();
+#ifndef MPI_DP
+    virtual string input_file() {
+        return _parameter->_Table_file;
+    }
+#endif
 };
 
 #endif

@@ -79,6 +79,23 @@ void Parameter::default_param()
 }
 
 //============================================================================//
+#ifdef MPI_DP
+void Parameter::initialize()
+#else
+void Parameter::initialize(int argc,char *argv[])
+#endif
+//============================================================================//
+{
+    default_param();
+#ifndef MPI_DP
+    process_args(argc, argv);
+#endif
+    parameter_set();
+
+    return;
+}
+
+//============================================================================//
 void Parameter::parameter_set()
 //============================================================================//
 {

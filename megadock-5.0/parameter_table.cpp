@@ -22,26 +22,26 @@
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : ParameterPDB
+//  Class Name : ParameterTable
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
 //============================================================================//
 
-#include "parameter_pdb.h"
+#include "parameter_table.h"
 
 #include <string>
 using namespace std;
 
 //============================================================================//
-void ParameterPDB::initialize(int argc,char *argv[])
+void ParameterTable::process_args(int argc, char *argv[])
 //============================================================================//
 {
-    default_param();
-
+#ifdef MPI_DP
     for( int i = 0 ; i < 3 ; i++ ) { //Receptor PDB, Ligand PDB, Outfile
         _IO_flag[i] = 0;
     }
+#endif
 
     optind = 1;
     int ch;
@@ -60,16 +60,25 @@ void ParameterPDB::initialize(int argc,char *argv[])
                             Line 3:parameters
                             Line 4:calculation options
                         */
+#ifdef MPI_DP
                         "\
     R:L:B:U:\
     o:ON:t:E:\
     a:b:e:d:F:v:\
     Dhy:z:r:f:i:jkl:S:G:T:"
+#else
+                        "\
+    I:\
+    ON:t:E:\
+    a:b:e:d:F:v:\
+    Dhy:z:r:f:i:jkl:S:G:T:"
+#endif
                         )) != -1 ) {
         switch( ch ) {
             //-----------------------------------------------------------------
             // input PDB file -------------------------------------------------
 
+#ifdef MPI_DP
         case 'R':
             _RecPDB_file  = optarg;
             _IO_flag[0]   = 1;
@@ -106,6 +115,15 @@ void ParameterPDB::initialize(int argc,char *argv[])
             }
             _IO_flag[2]   = 1;
             break;
+#else
+        case 'I':
+            _Table_file   = optarg;
+            break;
+#endif
+
+            //-----------------------------------------------------------------
+            // output options -------------------------------------------------
+
         case 'O':
             detail_output_flag = 1;
             break;
@@ -241,15 +259,14 @@ void ParameterPDB::initialize(int argc,char *argv[])
             break;
         }
     }
-
+#ifdef MPI_DP
     pdb_step();
-    parameter_set();
-
-    return;
+#endif
 }
 
+#ifdef MPI_DP
 //============================================================================//
-void ParameterPDB::pdb_step()
+void ParameterTable::pdb_step()
 //============================================================================//
 {
     if( !_IO_flag[0] ) {
@@ -309,6 +326,114 @@ void ParameterPDB::pdb_step()
     //cout << "#Receptor = " << _RecPDB_file << endl;
     //cout << "#Ligand   = " << _LigPDB_file << endl;
     cout << "# Output file = " << _RLOut_file << endl;
+
+    return;
+}
+#endif
+
+//============================================================================//
+void ParameterTable::initialize(ParameterTable *pparameter)
+//============================================================================//
+{
+#ifndef MPI_DP
+    _Table_file = pparameter->_Table_file;
+#endif
+    _RLOut_file = pparameter->_RLOut_file;
+    _RLOut_file_detail = pparameter->_RLOut_file_detail; 
+    _RLOut_file_csv = pparameter->_RLOut_file_csv;
+    calc_id = pparameter->calc_id;
+    detail_output_flag = pparameter->detail_output_flag;
+    calc_time_log_output_flag = pparameter->calc_time_log_output_flag;
+
+    _Num_grid = pparameter->_Num_grid;
+    _Num_fft = pparameter->_Num_fft;
+    _Num_fft_flag = pparameter->_Num_fft_flag;
+    _Num_atom_max = pparameter->_Num_atom_max;
+    _Num_output = pparameter->_Num_output;
+    _Num_output_flag = pparameter->_Num_output_flag;
+    _Num_thread_limit = pparameter->_Num_thread_limit;
+    _Num_GPU_limit = pparameter->_Num_GPU_limit;
+
+    _Score_func = pparameter->_Score_func;
+    _Num_sort = pparameter->_Num_sort;
+    _Elec_ratio = pparameter->_Elec_ratio;
+    _ACE_ratio = pparameter->_ACE_ratio;
+    grid_width = pparameter->grid_width;
+    ligand_max_edge = pparameter->ligand_max_edge;
+    _Rotation_angle_set = pparameter->_Rotation_angle_set;
+    fft_base_set = pparameter->fft_base_set;
+    lig_elec_serial_flag = pparameter->lig_elec_serial_flag;
+    fft_library_type = pparameter->fft_library_type;
+
+    tem_flag1 = pparameter->tem_flag1;
+    tem_flag2 = pparameter->tem_flag2;
+    tem_flag3 = pparameter->tem_flag3;
+    tem_flag4 = pparameter->tem_flag4;
+    f1_flag = pparameter->f1_flag;
+    f2_flag = pparameter->f2_flag;
+    
+    _Old_voxel_flag = pparameter->_Old_voxel_flag;
+    _Grid_space_rec = pparameter->_Grid_space_rec;
+    _Grid_space_lig = pparameter->_Grid_space_lig;
+    
+    _rPSC_param_rec_core = pparameter->_rPSC_param_rec_core;
+    _rPSC_param_lig_core = pparameter->_rPSC_param_lig_core;
+
+    _Num_rot_angles = pparameter->_Num_rot_angles;
+    _Charmmr = pparameter->_Charmmr;
+    _Charmmc = pparameter->_Charmmc;
+    _ACE = pparameter->_ACE;
+
+
+    _Zangle = new float[_Num_rot_angles*3];
+    for( int i = 0 ; i < _Num_rot_angles*3 ; i++ ) {
+        _Zangle[i] = pparameter->_Zangle[i];
+    }
+}
+
+//============================================================================//
+void ParameterTable::output_file_name(const string rec_file, const string lig_file)
+//============================================================================//
+{
+    string  rfile = rec_file;
+    string  lfile = lig_file;
+    string  ofile;
+    int     ipr;
+    int     ipl;
+
+    while(1) {
+        ipr   = rfile.rfind("/");
+
+        if( ipr == (int) string::npos ) {
+            break;
+        } else {
+            rfile = rfile.substr(ipr+1);
+        }
+    }
+
+    ipr   = rfile.rfind(".");
+    rfile = rfile.substr(0,ipr);
+    rfile = rfile + "-";
+
+    while(1) {
+        ipl   = lfile.rfind("/");
+
+        if( ipl == (int) string::npos ) {
+            break;
+        } else {
+            lfile = lfile.substr(ipl+1);
+        }
+    }
+
+    ipl   = lfile.rfind(".");
+    lfile = lfile.substr(0,ipl);
+
+    ofile = rfile + lfile + ".out";
+    _RLOut_file = ofile;
+    ofile = rfile + lfile + ".detail";
+    _RLOut_file_detail = ofile;
+    ofile = rfile + lfile + ".csv";
+    _RLOut_file_csv = ofile;
 
     return;
 }

@@ -513,10 +513,11 @@ void FFTProcessTable::cuda_fft(float *grid_r,float *grid_i,float *grid_coord,flo
                     for( int k = num_sort-1 ; k > j ; k-- ) {
                         _Select[k] = _Select[k-1];
                     }
+                    const int index = top_index_host[i];
                     _Select[j].score    = raw;
-                    _Select[j].index[1] = i / nf2;
-                    _Select[j].index[2] = (i / _Num_fft) % _Num_fft;
-                    _Select[j].index[3] = i % _Num_fft;
+                    _Select[j].index[1] = index / nf2;
+                    _Select[j].index[2] = (index / _Num_fft) % _Num_fft;
+                    _Select[j].index[3] = index % _Num_fft;
                     break;
                 }
             }

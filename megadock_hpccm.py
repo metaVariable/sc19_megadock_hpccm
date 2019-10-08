@@ -2,24 +2,29 @@
 HPC Base image
 
 Contents:
-  CUDA version 10.0
-  OPA/infiniband Basic Driver (upstream)
+  CentOS 7 (default)
+  CUDA version 10.0 (default)
+  Mellanox OFED version 4.6-1.0.1.1 ('ofed=True')
+  Intel OPA driver/library (upstream, 'opa=True')
   GNU compilers (upstream)
   FFTW version 3.3.8 (default)
   OpenMPI version 3.1.3 (default)
 """
 # pylint: disable=invalid-name, undefined-variable, used-before-assignment
 
-# base image
-devel_image = 'nvidia/cuda:10.0-devel-centos7'
-
-# library version
+# userargs
+base_image   = USERARG.get('base', 'nvidia/cuda:10.0-devel-centos7')
 ompi_version = USERARG.get('ompi', '3.1.3')
 fftw_version = USERARG.get('fftw', '3.3.8')
+ofed_flag    = USERARG.get('ofed', False)
+opa_flag     = USERARG.get('opa', False)
 
 ######
 # Devel stage
 ######
+
+# base image
+devel_image = base_image
 
 Stage0.name = 'devel'
 
@@ -27,11 +32,21 @@ Stage0 += comment(__doc__, reformat=False)
 
 Stage0 += baseimage(image=devel_image, _as='devel')
 
-Stage0 += packages(
+# OFED
+if ofed_flag:
+  Stage0 += mlnx_ofed(version='4.6-1.0.1.1')
+
+# Intel OPA
+if opa_flag:
+  Stage0 += packages(
     yum=['numactl-libs', 'hwloc-libs', 'libfabric', 'libibverbs', 'infinipath-psm', \
          'opa-basic-tools', 'rdma-core', 'libpsm2', \
-         'libhfil', 'libibverbs-devel', 'libsysfs-devel', \
-         'cuda-samples-10-0', 'ssh']
+         'libhfil', 'libibverbs-devel', 'libsysfs-devel']
+  )
+
+# MEGADOCK deps
+Stage0 += packages(
+    yum=['cuda-samples-10-0', 'ssh']
 )
 
 # GNU compilers
@@ -49,12 +64,14 @@ Stage0 += fftw(
     toolchain=compiler.toolchain
 )
 
+OpenMPI_with_verbs = ofed_flag or opa_flag
+
 # OpenMPI
 Stage0 += openmpi(
     version=ompi_version,
     prefix='/usr/local/openmpi',
     cuda=True, 
-    infiniband=True,
+    infiniband=OpenMPI_with_verbs,
     configure_opts=[
         '--enable-mpi-cxx'
         ],
@@ -62,10 +79,11 @@ Stage0 += openmpi(
 )
 
 # MEGADOCK
-Stage0 += copy(src='./megadock-5.0-alpha-706cb91', dest='/workspace')
+Stage0 += copy(src='./megadock-5.0', dest='/workspace')
 Stage0 += copy(
     src='./Makefile',
     dest='/workspace/Makefile'
 )
 
 Stage0 += shell(commands=['cd /workspace', 'make -j$(nproc)'])
+

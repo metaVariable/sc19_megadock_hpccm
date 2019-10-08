@@ -22,22 +22,24 @@
 //
 //  Software Name : MEGADOCK
 //
-//  Class Name : ParameterTable
+//  Class Name : ParameterPDB
 //
 //  Contact address : Tokyo Institute of Technology, AKIYAMA Lab.
 //
 //============================================================================//
 
-#include "parameter_table.h"
+#include "parameter_pdb.h"
 
 #include <string>
 using namespace std;
 
 //============================================================================//
-void ParameterTable::initialize(int argc,char *argv[])
+void ParameterPDB::process_args(int argc, char *argv[])
 //============================================================================//
 {
-    default_param();
+    for( int i = 0 ; i < 3 ; i++ ) { //Receptor PDB, Ligand PDB, Outfile
+        _IO_flag[i] = 0;
+    }
 
     optind = 1;
     int ch;
@@ -57,8 +59,8 @@ void ParameterTable::initialize(int argc,char *argv[])
                             Line 4:calculation options
                         */
                         "\
-    I:\
-    ON:t:E:\
+    R:L:B:U:\
+    o:ON:t:E:\
     a:b:e:d:F:v:\
     Dhy:z:r:f:i:jkl:S:G:T:"
                         )) != -1 ) {
@@ -66,13 +68,42 @@ void ParameterTable::initialize(int argc,char *argv[])
             //-----------------------------------------------------------------
             // input PDB file -------------------------------------------------
 
-        case 'I':
-            _Table_file   = optarg;
+        case 'R':
+            _RecPDB_file  = optarg;
+            _IO_flag[0]   = 1;
+            break;
+        case 'L':
+            _LigPDB_file  = optarg;
+            _IO_flag[1]   = 1;
+            break;
+        case 'B': // for input support
+            _RecPDB_file  = optarg+pdb_ext_r_b;
+            _IO_flag[0]   = 1;
+            _LigPDB_file  = optarg+pdb_ext_l_b;
+            _IO_flag[1]   = 1;
+            break;
+        case 'U': // for input support
+            _RecPDB_file  = optarg+pdb_ext_r_u;
+            _IO_flag[0]   = 1;
+            _LigPDB_file  = optarg+pdb_ext_l_u;
+            _IO_flag[1]   = 1;
             break;
 
             //-----------------------------------------------------------------
             // output options -------------------------------------------------
 
+        case 'o':
+            _RLOut_file = optarg;
+            _RLOut_file_detail = optarg+detail_ext;
+            _RLOut_file_csv = optarg+csv_ext;
+            if(_RLOut_file.length() > 4) {
+                if(_RLOut_file.substr(_RLOut_file.length()-4)==".out") {
+                    _RLOut_file_detail = _RLOut_file.substr(0,_RLOut_file.length()-4)+detail_ext;;
+                    _RLOut_file_csv = _RLOut_file.substr(0,_RLOut_file.length()-4)+csv_ext;;
+                }
+            }
+            _IO_flag[2]   = 1;
+            break;
         case 'O':
             detail_output_flag = 1;
             break;
@@ -208,113 +239,70 @@ void ParameterTable::initialize(int argc,char *argv[])
             break;
         }
     }
-
-    parameter_set();
-
-    return;
+    pdb_step();
 }
 
 //============================================================================//
-void ParameterTable::initialize(ParameterTable *pparameter)
+void ParameterPDB::pdb_step()
 //============================================================================//
 {
-    _Table_file = pparameter->_Table_file;
-    _RLOut_file = pparameter->_RLOut_file;
-    _RLOut_file_detail = pparameter->_RLOut_file_detail; 
-    _RLOut_file_csv = pparameter->_RLOut_file_csv;
-    calc_id = pparameter->calc_id;
-    detail_output_flag = pparameter->detail_output_flag;
-    calc_time_log_output_flag = pparameter->calc_time_log_output_flag;
-
-    _Num_grid = pparameter->_Num_grid;
-    _Num_fft = pparameter->_Num_fft;
-    _Num_fft_flag = pparameter->_Num_fft_flag;
-    _Num_atom_max = pparameter->_Num_atom_max;
-    _Num_output = pparameter->_Num_output;
-    _Num_output_flag = pparameter->_Num_output_flag;
-    _Num_thread_limit = pparameter->_Num_thread_limit;
-    _Num_GPU_limit = pparameter->_Num_GPU_limit;
-
-    _Score_func = pparameter->_Score_func;
-    _Num_sort = pparameter->_Num_sort;
-    _Elec_ratio = pparameter->_Elec_ratio;
-    _ACE_ratio = pparameter->_ACE_ratio;
-    grid_width = pparameter->grid_width;
-    ligand_max_edge = pparameter->ligand_max_edge;
-    _Rotation_angle_set = pparameter->_Rotation_angle_set;
-    fft_base_set = pparameter->fft_base_set;
-    lig_elec_serial_flag = pparameter->lig_elec_serial_flag;
-    fft_library_type = pparameter->fft_library_type;
-
-    tem_flag1 = pparameter->tem_flag1;
-    tem_flag2 = pparameter->tem_flag2;
-    tem_flag3 = pparameter->tem_flag3;
-    tem_flag4 = pparameter->tem_flag4;
-    f1_flag = pparameter->f1_flag;
-    f2_flag = pparameter->f2_flag;
-    
-    _Old_voxel_flag = pparameter->_Old_voxel_flag;
-    _Grid_space_rec = pparameter->_Grid_space_rec;
-    _Grid_space_lig = pparameter->_Grid_space_lig;
-    
-    _rPSC_param_rec_core = pparameter->_rPSC_param_rec_core;
-    _rPSC_param_lig_core = pparameter->_rPSC_param_lig_core;
-
-    _Num_rot_angles = pparameter->_Num_rot_angles;
-    _Charmmr = pparameter->_Charmmr;
-    _Charmmc = pparameter->_Charmmc;
-    _ACE = pparameter->_ACE;
-
-
-    _Zangle = new float[_Num_rot_angles*3];
-    for( int i = 0 ; i < _Num_rot_angles*3 ; i++ ) {
-        _Zangle[i] = pparameter->_Zangle[i];
+    if( !_IO_flag[0] ) {
+        cerr << "[ERROR] Receptor PDB file is not specified!!" << endl;
+        usage();
+        exit(1);
     }
-}
 
-//============================================================================//
-void ParameterTable::output_file_name(const string rec_file, const string lig_file)
-//============================================================================//
-{
-    string  rfile = rec_file;
-    string  lfile = lig_file;
-    string  ofile;
-    int     ipr;
-    int     ipl;
+    if( !_IO_flag[1] ) {
+        cerr << "[ERROR] Ligand PDB file is not specified!!" << endl;
+        usage();
+        exit(1);
+    }
 
-    while(1) {
-        ipr   = rfile.rfind("/");
+    if( !_IO_flag[2] ) {
+        string  rfile = _RecPDB_file;
+        string  lfile = _LigPDB_file;
+        string  ofile;
+        int     ipr;
+        int     ipl;
 
-        if( ipr == (int) string::npos ) {
-            break;
-        } else {
-            rfile = rfile.substr(ipr+1);
+        while(1) {
+            ipr   = rfile.rfind("/");
+
+            if( ipr == (int) string::npos ) {
+                break;
+            } else {
+                rfile = rfile.substr(ipr+1);
+            }
         }
-    }
 
-    ipr   = rfile.rfind(".");
-    rfile = rfile.substr(0,ipr);
-    rfile = rfile + "-";
+        ipr   = rfile.rfind(".");
+        rfile = rfile.substr(0,ipr);
+        rfile = rfile + "-";
 
-    while(1) {
-        ipl   = lfile.rfind("/");
+        while(1) {
+            ipl   = lfile.rfind("/");
 
-        if( ipl == (int) string::npos ) {
-            break;
-        } else {
-            lfile = lfile.substr(ipl+1);
+            if( ipl == (int) string::npos ) {
+                break;
+            } else {
+                lfile = lfile.substr(ipl+1);
+            }
         }
+
+        ipl   = lfile.rfind(".");
+        lfile = lfile.substr(0,ipl);
+
+        ofile = rfile + lfile + ".out";
+        _RLOut_file = ofile;
+        ofile = rfile + lfile + ".detail";
+        _RLOut_file_detail = ofile;
+        ofile = rfile + lfile + ".csv";
+        _RLOut_file_csv = ofile;
     }
 
-    ipl   = lfile.rfind(".");
-    lfile = lfile.substr(0,ipl);
-
-    ofile = rfile + lfile + ".out";
-    _RLOut_file = ofile;
-    ofile = rfile + lfile + ".detail";
-    _RLOut_file_detail = ofile;
-    ofile = rfile + lfile + ".csv";
-    _RLOut_file_csv = ofile;
+    //cout << "#Receptor = " << _RecPDB_file << endl;
+    //cout << "#Ligand   = " << _LigPDB_file << endl;
+    cout << "# Output file = " << _RLOut_file << endl;
 
     return;
 }

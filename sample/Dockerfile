@@ -2,8 +2,10 @@
 # HPC Base image
 # 
 # Contents:
-#   CUDA version 10.0
-#   OPA/infiniband Basic Driver (upstream)
+#   CentOS 7 (default)
+#   CUDA version 10.0 (default)
+#   Mellanox OFED version 4.6-1.0.1.1 ('ofed=True')
+#   Intel OPA driver/library (upstream, 'opa=True')
 #   GNU compilers (upstream)
 #   FFTW version 3.3.8 (default)
 #   OpenMPI version 3.1.3 (default)
@@ -13,17 +15,6 @@ FROM nvidia/cuda:10.0-devel-centos7 AS devel
 
 RUN yum install -y \
         cuda-samples-10-0 \
-        hwloc-libs \
-        infinipath-psm \
-        libfabric \
-        libhfil \
-        libibverbs \
-        libibverbs-devel \
-        libpsm2 \
-        libsysfs-devel \
-        numactl-libs \
-        opa-basic-tools \
-        rdma-core \
         ssh && \
     rm -rf /var/cache/yum/*
 
@@ -62,14 +53,14 @@ RUN yum install -y \
     rm -rf /var/cache/yum/*
 RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://www.open-mpi.org/software/ompi/v3.1/downloads/openmpi-3.1.3.tar.bz2 && \
     mkdir -p /var/tmp && tar -x -f /var/tmp/openmpi-3.1.3.tar.bz2 -C /var/tmp -j && \
-    cd /var/tmp/openmpi-3.1.3 &&  CC=gcc CXX=g++ F77=gfortran F90=gfortran FC=gfortran ./configure --prefix=/usr/local/openmpi --enable-mpi-cxx --with-cuda --with-verbs && \
+    cd /var/tmp/openmpi-3.1.3 &&  CC=gcc CXX=g++ F77=gfortran F90=gfortran FC=gfortran ./configure --prefix=/usr/local/openmpi --enable-mpi-cxx --with-cuda --without-verbs && \
     make -j$(nproc) && \
     make -j$(nproc) install && \
     rm -rf /var/tmp/openmpi-3.1.3.tar.bz2 /var/tmp/openmpi-3.1.3
 ENV LD_LIBRARY_PATH=/usr/local/openmpi/lib:$LD_LIBRARY_PATH \
     PATH=/usr/local/openmpi/bin:$PATH
 
-COPY ./megadock-5.0-alpha-706cb91 /workspace
+COPY ./megadock-5.0 /workspace
 
 COPY ./Makefile /workspace/Makefile
 

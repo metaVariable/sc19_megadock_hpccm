@@ -56,7 +56,11 @@ void ControlTable::initialize(bool verbose)
 }
 
 //============================================================================//
+#ifdef MPI_DP
+void ControlTable::prepare()
+#else
 void ControlTable::prepare(string rec_file, string lig_file, string out_file)
+#endif
 //============================================================================//
 {
     int ngrid;
@@ -65,6 +69,10 @@ void ControlTable::prepare(string rec_file, string lig_file, string out_file)
     struct timeval et1, et2;
     gettimeofday(&et1,NULL);
 
+#ifdef MPI_DP
+    string rec_file = _parameter->_RecPDB_file;
+    string lig_file = _parameter->_LigPDB_file;
+#else
     if (out_file == "") {
         _parameter->output_file_name(rec_file, lig_file);
     } else {
@@ -79,6 +87,7 @@ void ControlTable::prepare(string rec_file, string lig_file, string out_file)
             }
         }
     }
+#endif
     // Receptor<ParameterTable>
     _receptor = new Receptor<ParameterTable>(rec_file);
     _exec_logger->rec_filename = rec_file;
