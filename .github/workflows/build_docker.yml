@@ -17,13 +17,13 @@ jobs:
       uses: actions/checkout@master
       
     - name: build hpccm
-      run: docker build . -f .github/workflows/Dockerfile -t hpccm
+      run: docker build . -f .github/workflows/Dockerfile.hpccm -t hpccm
       
     - name: generate recipe
-      run: docker run -v ${HOME} hpccm --recipe ${HOME}/megadock_hpccm.py --format docker > ${HOME}/Dockerfile.general
+      run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format docker > /workspace/Dockerfile
       
     - name: build megadock
-      run: docker build . -f Dockerfile.general -t megadock:hpccm
+      run: docker build . -f Dockerfile -t megadock:hpccm
       
     - name: check
       run: docker run -it megadock:hpccm /workspace/megadock-gpu-dp -h
