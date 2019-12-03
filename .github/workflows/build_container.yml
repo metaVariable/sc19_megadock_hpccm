@@ -58,8 +58,11 @@ jobs:
     - name: Build docker image
       run: docker build . -f recipe/Dockerfile -t megadock:hpccm
       
-    - name: Check
+    - name: Check ompi_info
       run: docker run megadock:hpccm ompi_info
+      
+    - name: Check binary
+      run: docker run megadock:hpccm which /workspace/megadock-gpu-dp
 
 
   build-singularity:
@@ -78,9 +81,15 @@ jobs:
 
     - name: Check artifact
       run: ls recipe
-    
-    - name: Build singularity image
-      run: singularity build singularity.sif recipe/singularity.def
+
+    - name: Build docker container for singularity
+      run: docker build . -f .github/workflows/Dockerfile.singularity -t singularity
+
+    - name: Build docker image for singularity
+      run: docker run --privileged -v `pwd`:/workspace singularity --verbose build /workspace/singularity.sif /workspace/singularity.def
       
-    - name: Check
-      run: singularity exec singularity.sif ompi_info
+    - name: Check binary
+      run: docker run --privileged -v `pwd`:/workspace -v /etc/localtime singularity --verbose exec /workspace/singularity.sif which /workspace/megadock-gpu-dp
+      
+    - name: Check ompi_info
+      run: docker run --privileged -v `pwd`:/workspace -v /etc/localtime singularity --verbose exec /workspace/singularity.sif ompi_info
