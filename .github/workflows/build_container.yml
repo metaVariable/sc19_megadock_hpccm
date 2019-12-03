@@ -1,4 +1,4 @@
-name: Build Docker image
+name: Build container image
 
 on:
   push:
@@ -59,7 +59,7 @@ jobs:
       run: docker build . -f recipe/Dockerfile -t megadock:hpccm
       
     - name: Check
-      run: docker run megadock:hpccm /workspace/megadock-gpu-dp -h
+      run: docker run megadock:hpccm ompi_info
 
 
   build-singularity:
@@ -83,4 +83,4 @@ jobs:
       run: singularity build singularity.sif recipe/singularity.def
       
     - name: Check
-      run: singularity exec singularity.sif /workspace/megadock-gpu-dp -h
+      run: singularity exec singularity.sif ompi_info
