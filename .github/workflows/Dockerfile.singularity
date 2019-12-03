@@ -30,4 +30,6 @@ RUN cd singularity && \
     make -C ./builddir && \
     make -C ./builddir install
 
+WORKDIR /workspace
+
 ENTRYPOINT ["singularity"]
