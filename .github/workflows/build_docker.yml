@@ -8,22 +8,74 @@ on:
 
 jobs:
 
-  build:
-    name: build
+  hpccm:
+    name: Generate container recipes
     runs-on: ubuntu-latest
     
     steps:
-    - name: checkout
+    - name: Checkout
       uses: actions/checkout@master
       
-    - name: build hpccm
+    - name: Build hpccm container
       run: docker build . -f .github/workflows/Dockerfile.hpccm -t hpccm
       
-    - name: generate recipe
+    - name: Generate docker recipe
       run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format docker > Dockerfile
+    
+    - name: Generate singularity recipe
+      run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format singularity > singularity.def
+    
+    - name: Upload docker recipe
+      uses: actions/upload-artifact@v1
+      with:
+        name: Dockerfile
+        path: Dockerfile
+
+    - name: Upload singularity recipe
+      uses: actions/upload-artifact@v1
+      with:
+        name: singularity.def
+        path: singularity.def
+    
+
+  build-docker:
+    needs: [hpccm]
+    name: Build-docker
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+    
+    - name: Download generated recipe
+      uses: actions/download-artifact@v1
+      with:
+        name: Dockerfile
       
-    - name: build megadock
+    - name: Build docker image
       run: docker build . -f Dockerfile -t megadock:hpccm
       
-    - name: check
+    - name: Check
       run: docker run -it megadock:hpccm /workspace/megadock-gpu-dp -h
+
+
+  build-singularity:
+    needs: [hpccm]
+    name: build-singularity
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Download generated recipe
+      uses: actions/download-artifact@v1
+      with:
+        name: singularity.def
+      
+    - name: Build singularity image
+      run: echo singularity build singularity.def singularity.sif
+      
+    - name: Check
+      run: singularity exec singularity.sif /workspace/megadock-gpu-dp -h
+
