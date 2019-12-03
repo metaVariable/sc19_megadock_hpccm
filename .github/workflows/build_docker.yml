@@ -17,7 +17,7 @@ jobs:
       uses: actions/checkout@master
       
     - name: install hpccm
-      run: pip install hpccm && which hpccm
+      run: pip3 install hpccm && which hpccm
       
     - name: generate recipe
       run: hpccm --recipe megadock_hpccm.py --format docker > Dockerfile.general
