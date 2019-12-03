@@ -51,17 +51,18 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: Dockerfile
+        path: Dockerfile
       
     - name: Build docker image
       run: docker build . -f Dockerfile -t megadock:hpccm
       
     - name: Check
-      run: docker run -it megadock:hpccm /workspace/megadock-gpu-dp -h
+      run: docker run megadock:hpccm /workspace/megadock-gpu-dp -h
 
 
   build-singularity:
     needs: [hpccm]
-    name: build-singularity
+    name: Build-singularity
     runs-on: ubuntu-latest
     
     steps:
@@ -72,6 +73,7 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: singularity.def
+        path: singularity.def
       
     - name: Build singularity image
       run: echo singularity build singularity.def singularity.sif
