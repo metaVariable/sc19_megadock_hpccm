@@ -28,13 +28,13 @@ jobs:
     - name: Upload docker recipe
       uses: actions/upload-artifact@v1
       with:
-        name: Dockerfile
+        name: recipe
         path: Dockerfile
 
     - name: Upload singularity recipe
       uses: actions/upload-artifact@v1
       with:
-        name: singularity.def
+        name: recipe
         path: singularity.def
 
 
@@ -50,14 +50,13 @@ jobs:
     - name: Download generated recipe
       uses: actions/download-artifact@v1
       with:
-        name: Dockerfile
-        path: Dockerfile
+        name: recipe
 
     - name: Check artifact
-      run: tree .
+      run: ls recipe
 
     - name: Build docker image
-      run: docker build . -f Dockerfile -t megadock:hpccm
+      run: docker build . -f recipe/Dockerfile -t megadock:hpccm
       
     - name: Check
       run: docker run megadock:hpccm /workspace/megadock-gpu-dp -h
@@ -75,14 +74,13 @@ jobs:
     - name: Download generated recipe
       uses: actions/download-artifact@v1
       with:
-        name: singularity.def
-        path: singularity.def
-    
+        name: recipe
+
     - name: Check artifact
-      run: tree .
+      run: ls recipe
     
     - name: Build singularity image
-      run: echo singularity build singularity.def singularity.sif
+      run: echo singularity build singularity.sif recipe/singularity.def
       
     - name: Check
       run: singularity exec singularity.sif /workspace/megadock-gpu-dp -h
