@@ -8,21 +8,21 @@ on:
 
 jobs:
 
-  build-general:
-    name: build general
+  build:
+    name: build
     runs-on: ubuntu-latest
     
     steps:
     - name: checkout
       uses: actions/checkout@master
       
-    - name: install hpccm
-      run: pip3 install hpccm && which hpccm
+    - name: build hpccm
+      run: docker build -f .github/workflows/Dockerfile -t hpccm
       
     - name: generate recipe
-      run: hpccm --recipe megadock_hpccm.py --format docker > Dockerfile.general
+      run: docker run -v ${HOME} hpccm --recipe ${HOME}/megadock_hpccm.py --format docker > ${HOME}/Dockerfile.general
       
-    - name: build
+    - name: build megadock
       run: docker build . -f Dockerfile.general -t megadock:hpccm
       
     - name: check
