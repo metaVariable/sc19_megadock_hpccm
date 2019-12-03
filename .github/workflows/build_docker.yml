@@ -1,0 +1,29 @@
+name: Build Docker image
+
+on:
+  push:
+#     branches:
+#       - master
+  pull_request:
+
+jobs:
+
+  build-general:
+    name: build general
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout
+      uses: actions/checkout@master
+      
+    - name: install hpccm
+      run: pip install hpccm && which hpccm
+      
+    - name: generate recipe
+      run: hpccm --recipe megadock_hpccm.py --format docker > Dockerfile.general
+      
+    - name: build
+      run: docker build . -f Dockerfile.general -t megadock:hpccm
+      
+    - name: check
+      run: docker run -it megadock:hpccm /workspace/megadock-gpu-dp -h
