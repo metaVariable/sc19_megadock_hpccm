@@ -36,11 +36,11 @@ jobs:
       with:
         name: singularity.def
         path: singularity.def
-    
+
 
   build-docker:
     needs: [hpccm]
-    name: Build-docker
+    name: Build docker image
     runs-on: ubuntu-latest
     
     steps:
@@ -52,7 +52,10 @@ jobs:
       with:
         name: Dockerfile
         path: Dockerfile
-      
+
+    - name: Check artifact
+      run: cat Dockerfile && && tree .
+
     - name: Build docker image
       run: docker build . -f Dockerfile -t megadock:hpccm
       
@@ -62,7 +65,7 @@ jobs:
 
   build-singularity:
     needs: [hpccm]
-    name: Build-singularity
+    name: Build singularity image
     runs-on: ubuntu-latest
     
     steps:
@@ -74,7 +77,10 @@ jobs:
       with:
         name: singularity.def
         path: singularity.def
-      
+    
+    - name: Check artifact
+      run: cat singularity.def && tree .
+    
     - name: Build singularity image
       run: echo singularity build singularity.def singularity.sif
       
