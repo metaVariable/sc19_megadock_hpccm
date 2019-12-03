@@ -17,7 +17,7 @@ jobs:
       uses: actions/checkout@master
       
     - name: build hpccm
-      run: docker build -f .github/workflows/Dockerfile -t hpccm
+      run: docker build . -f .github/workflows/Dockerfile -t hpccm
       
     - name: generate recipe
       run: docker run -v ${HOME} hpccm --recipe ${HOME}/megadock_hpccm.py --format docker > ${HOME}/Dockerfile.general
