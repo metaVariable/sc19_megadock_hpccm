@@ -80,8 +80,7 @@ jobs:
       run: ls recipe
     
     - name: Build singularity image
-      run: echo singularity build singularity.sif recipe/singularity.def
+      run: singularity build singularity.sif recipe/singularity.def
       
     - name: Check
       run: singularity exec singularity.sif /workspace/megadock-gpu-dp -h
-
