@@ -1,0 +1,95 @@
+name: Build container images
+
+on:
+  push:
+#     branches:
+#       - master
+  pull_request:
+
+jobs:
+
+  hpccm:
+    name: Generate container recipes
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Build docker image for hpccm
+      run: docker build . -f .github/workflows/Dockerfile.hpccm -t hpccm
+
+    - name: Generate docker recipe
+      run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format docker > Dockerfile
+
+    - name: Generate singularity recipe
+      run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format singularity > singularity.def
+
+    - name: Upload docker recipe
+      uses: actions/upload-artifact@v1
+      with:
+        name: recipe
+        path: Dockerfile
+
+    - name: Upload singularity recipe
+      uses: actions/upload-artifact@v1
+      with:
+        name: recipe
+        path: singularity.def
+
+
+  build-docker:
+    needs: [hpccm]
+    name: Build docker image
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Download generated recipe
+      uses: actions/download-artifact@v1
+      with:
+        name: recipe
+
+    - name: Check artifact
+      run: ls recipe
+
+    - name: Build docker image for megadock
+      run: docker build . -f recipe/Dockerfile -t megadock
+
+    - name: Check ompi_info
+      run: docker run megadock ompi_info
+
+    - name: Check binary
+      run: docker run megadock ls /workspace/megadock-gpu-dp
+
+
+  build-singularity:
+    needs: [hpccm]
+    name: Build singularity image
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Download generated recipe
+      uses: actions/download-artifact@v1
+      with:
+        name: recipe
+
+    - name: Check artifact
+      run: ls recipe
+
+    - name: Build docker image for singularity binary
+      run: docker build . -f .github/workflows/Dockerfile.singularity -t singularity
+
+    - name: Build singularity image for megadock
+      run: docker run --privileged -v `pwd`:/workspace singularity --verbose build /workspace/singularity.sif /workspace/recipe/singularity.def
+
+#     - name: Check ompi_info
+#       run: docker run --privileged -v `pwd`:/workspace singularity --verbose exec /workspace/singularity.sif ompi_info
+
+#     - name: Check binary
+#       run: docker run --privileged -v `pwd`:/workspace singularity --verbose exec /workspace/singularity.sif ls /workspace/megadock-gpu-dp
