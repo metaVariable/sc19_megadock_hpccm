@@ -20,7 +20,7 @@ jobs:
       run: docker build . -f .github/workflows/Dockerfile.hpccm -t hpccm
       
     - name: generate recipe
-      run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format docker > /workspace/Dockerfile
+      run: docker run -v `pwd`:/workspace hpccm --recipe /workspace/megadock_hpccm.py --format docker > Dockerfile
       
     - name: build megadock
       run: docker build . -f Dockerfile -t megadock:hpccm
