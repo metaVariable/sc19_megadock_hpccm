@@ -1,1 +1,0 @@
-# MEGADOCK-5
