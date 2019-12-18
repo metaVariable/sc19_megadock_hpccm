@@ -94,7 +94,7 @@ From: nvidia/cuda:10.0-devel-centos7
     export PATH=/usr/local/openmpi/bin:$PATH
 
 %files
-    ./megadock-5.0 /workspace
+    ./megadock-scfa20 /workspace
 
 %files
     ./Makefile /workspace/Makefile
