@@ -24,7 +24,7 @@ The container has necessary GPU, OpenMPI, FFTW, InfiniBand, Intel Omni-Path libr
 │   └── singularity_ompi-3-1-6_ofed.def #   Singularity definition for ABCI
 ├── script                              # 
 |   └── makeTable.sh                    # script for generating input docking list (table)
-├── megadock-5.0                        # source code of MEGADOCK application
+├── megadock-scfa20                     # source code of MEGADOCK application
 ├── megadock_hpccm.py                   # HPCCM recipe
 ├── Makefile                            # Makefile for image building
 └── README.md                           # this document
